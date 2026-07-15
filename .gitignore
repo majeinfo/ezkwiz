@@ -1,0 +1,10 @@
+key.env
+.env
+py314/
+__pycache__/
+*.pyc
+db.sqlite3
+staticfiles/
+media/
+.DS_Store
+mariadb_data/

@@ -1,0 +1,25 @@
+.choice-card {
+  cursor: pointer;
+  user-select: none;
+}
+
+.choice-card.selected {
+  border-color: #0d6efd;
+  background-color: #e7f1ff;
+}
+
+.choice-card.correct {
+  border-color: #198754;
+  background-color: #d1e7dd;
+}
+
+.choice-card.incorrect {
+  border-color: #dc3545;
+  background-color: #f8d7da;
+}
+
+.game-code {
+  font-size: 2.5rem;
+  letter-spacing: 0.3rem;
+  font-weight: 700;
+}

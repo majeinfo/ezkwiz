@@ -1,0 +1,146 @@
+{% extends "base.html" %}
+{% block title %}Hosting {{ session.quiz.title }}{% endblock %}
+{% block content %}
+<div class="mx-auto" style="max-width: 720px;">
+  <h1 class="h4">{{ session.quiz.title }}</h1>
+  <div class="text-center mb-3">
+    <div class="text-muted">Players join at <strong>{{ request.scheme }}://{{ request.get_host }}{% url 'games:play' session.code %}</strong> with code</div>
+    <div class="game-code">{{ session.code }}</div>
+  </div>
+
+  <div id="lobby-panel" class="card p-3 mb-3">
+    <h2 class="h5">Lobby</h2>
+    <p>Players joined: <span id="lobby-count">0</span></p>
+    <ul id="lobby-players" class="list-group mb-3"></ul>
+    <button id="start-button" class="btn btn-success">Start game</button>
+  </div>
+
+  <div id="question-panel" class="card p-3 mb-3 d-none">
+    <h2 class="h5" id="question-text"></h2>
+    <div id="choice-list" class="row g-2 mb-2"></div>
+    <p>Answered: <span id="answered-count">0</span> / <span id="total-count">0</span></p>
+    <button id="close-question-button" class="btn btn-warning">Close question</button>
+  </div>
+
+  <div id="results-panel" class="card p-3 mb-3 d-none">
+    <h2 class="h5">Results</h2>
+    <div id="results-choices" class="row g-2 mb-3"></div>
+    <h3 class="h6">Leaderboard</h3>
+    <ol id="results-leaderboard" class="list-group list-group-numbered mb-3"></ol>
+    <button id="next-question-button" class="btn btn-primary">Next question</button>
+  </div>
+
+  <div id="final-panel" class="card p-3 mb-3 d-none">
+    <h2 class="h5">Final results</h2>
+    <ol id="final-leaderboard" class="list-group list-group-numbered"></ol>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script id="host-config" type="application/json">{"host_token": "{{ session.host_token }}"}</script>
+<script>
+const config = JSON.parse(document.getElementById('host-config').textContent);
+
+const lobbyPanel = document.getElementById('lobby-panel');
+const questionPanel = document.getElementById('question-panel');
+const resultsPanel = document.getElementById('results-panel');
+const finalPanel = document.getElementById('final-panel');
+
+function showOnly(panel) {
+  [lobbyPanel, questionPanel, resultsPanel, finalPanel].forEach(p => {
+    p.classList.toggle('d-none', p !== panel);
+  });
+}
+
+const protocol = location.protocol === 'https:' ? 'wss://' : 'ws://';
+const socket = new WebSocket(`${protocol}${location.host}/ws/host/${config.host_token}/`);
+
+document.getElementById('start-button').addEventListener('click', () => {
+  socket.send(JSON.stringify({ action: 'start' }));
+});
+document.getElementById('close-question-button').addEventListener('click', () => {
+  socket.send(JSON.stringify({ action: 'close_question' }));
+});
+document.getElementById('next-question-button').addEventListener('click', () => {
+  socket.send(JSON.stringify({ action: 'next_question' }));
+});
+
+socket.addEventListener('message', (event) => {
+  const data = JSON.parse(event.data);
+
+  if (data.type === 'lobby_update') {
+    document.getElementById('lobby-count').textContent = data.players.length;
+    const list = document.getElementById('lobby-players');
+    list.innerHTML = '';
+    data.players.forEach(nickname => {
+      const li = document.createElement('li');
+      li.className = 'list-group-item';
+      li.textContent = nickname;
+      list.appendChild(li);
+    });
+  } else if (data.type === 'question_started') {
+    renderQuestion(data.question);
+  } else if (data.type === 'tally_update') {
+    document.getElementById('answered-count').textContent = data.answered;
+    document.getElementById('total-count').textContent = data.total;
+  } else if (data.type === 'question_closed') {
+    renderResults(data.question, data.leaderboard);
+  } else if (data.type === 'game_ended') {
+    renderFinal(data.leaderboard);
+  } else if (data.type === 'error') {
+    alert(data.message);
+  }
+});
+
+function renderQuestion(question) {
+  document.getElementById('question-text').textContent = question.text;
+  document.getElementById('answered-count').textContent = '0';
+  const list = document.getElementById('choice-list');
+  list.innerHTML = '';
+  question.choices.forEach(choice => {
+    const col = document.createElement('div');
+    col.className = 'col-6';
+    const card = document.createElement('div');
+    card.className = 'border rounded p-2 choice-card';
+    card.textContent = choice.text;
+    col.appendChild(card);
+    list.appendChild(col);
+  });
+  showOnly(questionPanel);
+}
+
+function renderResults(question, leaderboard) {
+  const list = document.getElementById('results-choices');
+  list.innerHTML = '';
+  question.choices.forEach(choice => {
+    const col = document.createElement('div');
+    col.className = 'col-6';
+    const card = document.createElement('div');
+    card.className = 'border rounded p-2 choice-card';
+    card.classList.add(choice.is_correct ? 'correct' : 'incorrect');
+    card.textContent = choice.text;
+    col.appendChild(card);
+    list.appendChild(col);
+  });
+  renderLeaderboard('results-leaderboard', leaderboard);
+  showOnly(resultsPanel);
+}
+
+function renderFinal(leaderboard) {
+  renderLeaderboard('final-leaderboard', leaderboard);
+  showOnly(finalPanel);
+}
+
+function renderLeaderboard(elementId, leaderboard) {
+  const list = document.getElementById(elementId);
+  list.innerHTML = '';
+  leaderboard.forEach(entry => {
+    const li = document.createElement('li');
+    li.className = 'list-group-item d-flex justify-content-between';
+    li.innerHTML = `<span>${entry.nickname}</span><span>${entry.score}</span>`;
+    list.appendChild(li);
+  });
+}
+</script>
+{% endblock %}

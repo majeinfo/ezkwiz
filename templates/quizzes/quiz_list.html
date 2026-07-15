@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}My quizzes{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h1 class="h3 mb-0">My quizzes</h1>
+  <a class="btn btn-primary" href="{% url 'quizzes:create' %}">New quiz</a>
+</div>
+
+{% if quizzes %}
+<div class="list-group">
+  {% for quiz in quizzes %}
+  <a class="list-group-item list-group-item-action d-flex justify-content-between align-items-center"
+     href="{% url 'quizzes:detail' quiz.pk %}">
+    <div>
+      <div class="fw-bold">{{ quiz.title }}</div>
+      <small class="text-muted">{{ quiz.questions.count }} question{{ quiz.questions.count|pluralize }}</small>
+    </div>
+    <small class="text-muted">Updated {{ quiz.updated_at|date:"Y-m-d H:i" }}</small>
+  </a>
+  {% endfor %}
+</div>
+{% else %}
+<p class="text-muted">You haven't created any quizzes yet.</p>
+{% endif %}
+{% endblock %}

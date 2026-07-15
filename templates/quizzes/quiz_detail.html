@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% block title %}{{ quiz.title }}{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-start mb-3">
+  <div>
+    <h1 class="h3 mb-1">{{ quiz.title }}</h1>
+    <p class="text-muted mb-0">{{ quiz.description }}</p>
+  </div>
+  <div class="text-end">
+    <a class="btn btn-outline-secondary btn-sm" href="{% url 'quizzes:edit' quiz.pk %}">Edit details</a>
+    <a class="btn btn-outline-danger btn-sm" href="{% url 'quizzes:delete' quiz.pk %}">Delete</a>
+  </div>
+</div>
+
+<div class="d-flex justify-content-between align-items-center mb-2">
+  <h2 class="h5 mb-0">Questions</h2>
+  <a class="btn btn-primary btn-sm" href="{% url 'quizzes:question_create' quiz.pk %}">Add question</a>
+</div>
+
+{% if quiz.questions.all %}
+<ol class="list-group list-group-numbered mb-4">
+  {% for question in quiz.questions.all %}
+  <li class="list-group-item d-flex justify-content-between align-items-center">
+    <div>
+      {{ question.text }}
+      <small class="text-muted">({{ question.choices.count }} choices, {{ question.time_limit_seconds }}s)</small>
+    </div>
+    <div>
+      <a class="btn btn-outline-secondary btn-sm" href="{% url 'quizzes:question_edit' quiz.pk question.pk %}">Edit</a>
+      <form class="d-inline" method="post" action="{% url 'quizzes:question_delete' quiz.pk question.pk %}"
+            onsubmit="return confirm('Delete this question?');">
+        {% csrf_token %}
+        <button class="btn btn-outline-danger btn-sm" type="submit">Delete</button>
+      </form>
+    </div>
+  </li>
+  {% endfor %}
+</ol>
+{% else %}
+<p class="text-muted mb-4">No questions yet. Add at least one to publish this quiz.</p>
+{% endif %}
+
+<form method="post" action="{% url 'quizzes:publish' quiz.pk %}">
+  {% csrf_token %}
+  <button class="btn btn-success" type="submit" {% if not quiz.questions.all %}disabled{% endif %}>
+    Publish &amp; start hosting
+  </button>
+</form>
+
+{% if quiz.sessions.all %}
+<h2 class="h5 mt-4">Past sessions</h2>
+<ul class="list-group">
+  {% for session in quiz.sessions.all %}
+  <li class="list-group-item d-flex justify-content-between align-items-center">
+    <span>Code {{ session.code }} &mdash; {{ session.get_status_display }}</span>
+    <a class="btn btn-outline-primary btn-sm" href="{% url 'games:host' session.host_token %}">Open host view</a>
+  </li>
+  {% endfor %}
+</ul>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block title %}Delete quiz{% endblock %}
+{% block content %}
+<h1 class="h3 mb-3">Delete "{{ object.title }}"?</h1>
+<p>This will permanently delete the quiz, its questions, choices, and any game sessions.</p>
+<form method="post">
+  {% csrf_token %}
+  <button class="btn btn-danger" type="submit">Delete</button>
+  <a class="btn btn-link" href="{% url 'quizzes:detail' object.pk %}">Cancel</a>
+</form>
+{% endblock %}

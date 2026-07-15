@@ -1,0 +1,198 @@
+{% extends "base.html" %}
+{% block title %}Play {{ code }}{% endblock %}
+{% block content %}
+<div class="mx-auto" style="max-width: 640px;">
+  <div class="text-center mb-3">
+    <div class="text-muted">Game code</div>
+    <div class="game-code">{{ code }}</div>
+  </div>
+
+  <div id="join-panel" class="card p-3 mb-3">
+    <h2 class="h5">Join the game</h2>
+    <div class="mb-2">
+      <input id="nickname-input" class="form-control" placeholder="Your nickname" maxlength="50">
+    </div>
+    <button id="join-button" class="btn btn-primary">Join</button>
+    <div id="join-error" class="text-danger mt-2"></div>
+  </div>
+
+  <div id="lobby-panel" class="card p-3 mb-3 d-none">
+    <h2 class="h5">Waiting for the host to start&hellip;</h2>
+    <p>Players in lobby: <span id="lobby-count">0</span></p>
+  </div>
+
+  <div id="question-panel" class="card p-3 mb-3 d-none">
+    <div class="d-flex justify-content-between align-items-center mb-2">
+      <h2 class="h5 mb-0" id="question-text"></h2>
+      <span class="badge bg-secondary" id="question-timer"></span>
+    </div>
+    <div id="choice-list" class="row g-2"></div>
+    <button id="submit-answer" class="btn btn-primary mt-3">Submit answer</button>
+    <div id="answer-status" class="text-muted mt-2"></div>
+  </div>
+
+  <div id="results-panel" class="card p-3 mb-3 d-none">
+    <h2 class="h5">Results</h2>
+    <div id="results-choices" class="row g-2 mb-3"></div>
+    <h3 class="h6">Leaderboard</h3>
+    <ol id="results-leaderboard" class="list-group list-group-numbered"></ol>
+  </div>
+
+  <div id="final-panel" class="card p-3 mb-3 d-none">
+    <h2 class="h5">Final results</h2>
+    <ol id="final-leaderboard" class="list-group list-group-numbered"></ol>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script id="play-config" type="application/json">{"code": "{{ code }}"}</script>
+<script>
+const config = JSON.parse(document.getElementById('play-config').textContent);
+const CODE = config.code;
+const STORAGE_TOKEN_KEY = `quizz_token_${CODE}`;
+const STORAGE_NICK_KEY = `quizz_nick_${CODE}`;
+
+const joinPanel = document.getElementById('join-panel');
+const lobbyPanel = document.getElementById('lobby-panel');
+const questionPanel = document.getElementById('question-panel');
+const resultsPanel = document.getElementById('results-panel');
+const finalPanel = document.getElementById('final-panel');
+
+function showOnly(panel) {
+  [joinPanel, lobbyPanel, questionPanel, resultsPanel, finalPanel].forEach(p => {
+    p.classList.toggle('d-none', p !== panel);
+  });
+}
+
+const protocol = location.protocol === 'https:' ? 'wss://' : 'ws://';
+const socket = new WebSocket(`${protocol}${location.host}/ws/play/${CODE}/`);
+
+let currentQuestionId = null;
+let selectedChoices = new Set();
+let submitted = false;
+let timerInterval = null;
+
+socket.addEventListener('open', () => {
+  const savedToken = localStorage.getItem(STORAGE_TOKEN_KEY);
+  const savedNick = localStorage.getItem(STORAGE_NICK_KEY);
+  if (savedToken && savedNick) {
+    socket.send(JSON.stringify({ action: 'join', nickname: savedNick, client_token: savedToken }));
+  }
+});
+
+document.getElementById('join-button').addEventListener('click', () => {
+  const nickname = document.getElementById('nickname-input').value.trim();
+  if (!nickname) return;
+  socket.send(JSON.stringify({ action: 'join', nickname }));
+});
+
+document.getElementById('submit-answer').addEventListener('click', () => {
+  if (submitted || currentQuestionId === null) return;
+  submitted = true;
+  socket.send(JSON.stringify({
+    action: 'answer',
+    question_id: currentQuestionId,
+    choice_ids: Array.from(selectedChoices),
+  }));
+  document.getElementById('answer-status').textContent = 'Answer submitted. Waiting for other players...';
+});
+
+socket.addEventListener('message', (event) => {
+  const data = JSON.parse(event.data);
+
+  if (data.type === 'joined') {
+    localStorage.setItem(STORAGE_TOKEN_KEY, data.client_token);
+    localStorage.setItem(STORAGE_NICK_KEY, data.nickname);
+    document.getElementById('join-error').textContent = '';
+    showOnly(lobbyPanel);
+  } else if (data.type === 'error') {
+    document.getElementById('join-error').textContent = data.message;
+  } else if (data.type === 'lobby_update') {
+    document.getElementById('lobby-count').textContent = data.players.length;
+  } else if (data.type === 'question_started') {
+    renderQuestion(data.question);
+  } else if (data.type === 'question_closed') {
+    renderResults(data.question, data.leaderboard);
+  } else if (data.type === 'game_ended') {
+    renderFinal(data.leaderboard);
+  }
+});
+
+function renderQuestion(question) {
+  currentQuestionId = question.id;
+  selectedChoices = new Set();
+  submitted = false;
+  document.getElementById('answer-status').textContent = '';
+  document.getElementById('question-text').textContent = question.text;
+
+  const list = document.getElementById('choice-list');
+  list.innerHTML = '';
+  question.choices.forEach(choice => {
+    const col = document.createElement('div');
+    col.className = 'col-6';
+    const card = document.createElement('div');
+    card.className = 'border rounded p-3 choice-card';
+    card.textContent = choice.text;
+    card.addEventListener('click', () => {
+      if (submitted) return;
+      if (selectedChoices.has(choice.id)) {
+        selectedChoices.delete(choice.id);
+        card.classList.remove('selected');
+      } else {
+        selectedChoices.add(choice.id);
+        card.classList.add('selected');
+      }
+    });
+    col.appendChild(card);
+    list.appendChild(col);
+  });
+
+  if (timerInterval) clearInterval(timerInterval);
+  let remaining = question.time_limit_seconds;
+  const timerEl = document.getElementById('question-timer');
+  timerEl.textContent = `${remaining}s`;
+  timerInterval = setInterval(() => {
+    remaining -= 1;
+    timerEl.textContent = `${Math.max(remaining, 0)}s`;
+    if (remaining <= 0) clearInterval(timerInterval);
+  }, 1000);
+
+  showOnly(questionPanel);
+}
+
+function renderResults(question, leaderboard) {
+  if (timerInterval) clearInterval(timerInterval);
+  const list = document.getElementById('results-choices');
+  list.innerHTML = '';
+  question.choices.forEach(choice => {
+    const col = document.createElement('div');
+    col.className = 'col-6';
+    const card = document.createElement('div');
+    card.className = 'border rounded p-3 choice-card';
+    card.classList.add(choice.is_correct ? 'correct' : 'incorrect');
+    card.textContent = choice.text;
+    col.appendChild(card);
+    list.appendChild(col);
+  });
+  renderLeaderboard('results-leaderboard', leaderboard);
+  showOnly(resultsPanel);
+}
+
+function renderFinal(leaderboard) {
+  renderLeaderboard('final-leaderboard', leaderboard);
+  showOnly(finalPanel);
+}
+
+function renderLeaderboard(elementId, leaderboard) {
+  const list = document.getElementById(elementId);
+  list.innerHTML = '';
+  leaderboard.forEach(entry => {
+    const li = document.createElement('li');
+    li.className = 'list-group-item d-flex justify-content-between';
+    li.innerHTML = `<span>${entry.nickname}</span><span>${entry.score}</span>`;
+    list.appendChild(li);
+  });
+}
+</script>
+{% endblock %}

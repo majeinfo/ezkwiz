@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block title %}{% if question %}Edit question{% else %}Add question{% endif %}{% endblock %}
+{% block content %}
+<h1 class="h3 mb-3">{% if question %}Edit question{% else %}Add question{% endif %}</h1>
+
+{% if formset.non_form_errors %}
+<div class="alert alert-danger">
+  {% for error in formset.non_form_errors %}<div>{{ error }}</div>{% endfor %}
+</div>
+{% endif %}
+
+<form method="post">
+  {% csrf_token %}
+  {{ form.as_p }}
+
+  <h2 class="h6 mt-4">Choices (2-4, mark all correct answers)</h2>
+  {{ formset.management_form }}
+  <div class="row g-2">
+    {% for choice_form in formset %}
+    <div class="col-md-6">
+      <div class="border rounded p-2">
+        {{ choice_form.id }}
+        <div class="d-flex align-items-center gap-2">
+          <div class="form-check">
+            {{ choice_form.is_correct }}
+            <label class="form-check-label" for="{{ choice_form.is_correct.id_for_label }}">Correct</label>
+          </div>
+        </div>
+        {{ choice_form.text }}
+        <div class="d-flex justify-content-between align-items-center mt-1">
+          <div>
+            <label class="form-label small mb-0 me-1" for="{{ choice_form.order.id_for_label }}">Order</label>
+            {{ choice_form.order }}
+          </div>
+          {% if choice_form.instance.pk %}
+          <div class="form-check">
+            {{ choice_form.DELETE }}
+            <label class="form-check-label small" for="{{ choice_form.DELETE.id_for_label }}">Remove</label>
+          </div>
+          {% endif %}
+        </div>
+        {{ choice_form.errors }}
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+
+  <button class="btn btn-primary mt-3" type="submit">Save question</button>
+  <a class="btn btn-link mt-3" href="{% url 'quizzes:detail' quiz.pk %}">Cancel</a>
+</form>
+{% endblock %}

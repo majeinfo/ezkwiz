@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block title %}{% if object %}Edit quiz{% else %}New quiz{% endif %}{% endblock %}
+{% block content %}
+<h1 class="h3 mb-3">{% if object %}Edit quiz{% else %}New quiz{% endif %}</h1>
+<form method="post">
+  {% csrf_token %}
+  {{ form.as_p }}
+  <button class="btn btn-primary" type="submit">Save</button>
+  {% if object %}
+  <a class="btn btn-link" href="{% url 'quizzes:detail' object.pk %}">Cancel</a>
+  {% endif %}
+</form>
+{% endblock %}
