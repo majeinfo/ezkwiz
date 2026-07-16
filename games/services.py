@@ -64,7 +64,7 @@ def _shuffled_choices(session, question):
 
 
 def question_payload(session, question, *, reveal_correct=False):
-    return {
+    payload = {
         'id': question.id,
         'text': question.text,
         'time_limit_seconds': question.time_limit_seconds,
@@ -77,6 +77,10 @@ def question_payload(session, question, *, reveal_correct=False):
             for choice in _shuffled_choices(session, question)
         ],
     }
+    if question.media:
+        payload['media_url'] = question.media.url
+        payload['media_kind'] = question.media_kind
+    return payload
 
 
 def compute_points(question, response_time_ms):

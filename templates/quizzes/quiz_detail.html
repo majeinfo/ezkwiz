@@ -24,6 +24,9 @@
     <div>
       {{ question.text }}
       <small class="text-muted">({{ question.choices.count }} choices, {{ question.time_limit_seconds }}s)</small>
+      {% if question.media %}
+      <span class="badge bg-info text-dark">{{ question.media_kind }} attached</span>
+      {% endif %}
     </div>
     <div>
       <a class="btn btn-outline-secondary btn-sm" href="{% url 'quizzes:question_edit' quiz.pk question.pk %}">Edit</a>

@@ -1,5 +1,9 @@
+import shutil
+import tempfile
+
 from django.contrib.auth import get_user_model
-from django.test import TestCase
+from django.core.files.uploadedfile import SimpleUploadedFile
+from django.test import TestCase, override_settings
 
 from quizzes.models import Choice, Question, Quiz
 
@@ -7,6 +11,17 @@ from . import services
 from .models import GameSession
 
 User = get_user_model()
+
+TEST_MEDIA_ROOT = tempfile.mkdtemp()
+
+
+def small_gif():
+    return SimpleUploadedFile(
+        'pixel.gif',
+        b'GIF89a\x01\x00\x01\x00\x80\x00\x00\xff\xff\xff\x00\x00\x00!\xf9\x04\x01\x00\x00\x00\x00,'
+        b'\x00\x00\x00\x00\x01\x00\x01\x00\x00\x02\x01D\x00;',
+        content_type='image/gif',
+    )
 
 
 class GameFlowTests(TestCase):
@@ -141,3 +156,31 @@ class GameFlowTests(TestCase):
             {c['id'] for c in payload1['choices']},
             {self.paris.id, self.berlin.id, self.london.id},
         )
+
+    def test_question_payload_omits_media_fields_when_no_file_attached(self):
+        payload = services.question_payload(self.session, self.question)
+        self.assertNotIn('media_url', payload)
+        self.assertNotIn('media_kind', payload)
+
+
+@override_settings(MEDIA_ROOT=TEST_MEDIA_ROOT)
+class QuestionMediaPayloadTests(TestCase):
+    @classmethod
+    def tearDownClass(cls):
+        super().tearDownClass()
+        shutil.rmtree(TEST_MEDIA_ROOT, ignore_errors=True)
+
+    def setUp(self):
+        owner = User.objects.create_user(username='mediahost', password='pw')
+        quiz = Quiz.objects.create(owner=owner, title='Media Quiz')
+        self.question = Question.objects.create(
+            quiz=quiz, text='Whats this?', order=0, media=small_gif(),
+        )
+        Choice.objects.create(question=self.question, text='A', is_correct=True, order=0)
+        Choice.objects.create(question=self.question, text='B', is_correct=False, order=1)
+        self.session = GameSession.objects.create(quiz=quiz)
+
+    def test_question_payload_includes_media_url_and_kind(self):
+        payload = services.question_payload(self.session, self.question)
+        self.assertEqual(payload['media_kind'], 'image')
+        self.assertEqual(payload['media_url'], self.question.media.url)

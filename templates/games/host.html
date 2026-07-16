@@ -17,6 +17,7 @@
 
   <div id="question-panel" class="card p-3 mb-3 d-none">
     <h2 class="h5" id="question-text"></h2>
+    <div id="question-media" class="mb-2"></div>
     <div id="choice-list" class="row g-2 mb-2"></div>
     <p>Answered: <span id="answered-count">0</span> / <span id="total-count">0</span></p>
     <button id="close-question-button" class="btn btn-warning">Close question</button>
@@ -24,6 +25,7 @@
 
   <div id="results-panel" class="card p-3 mb-3 d-none">
     <h2 class="h5">Results</h2>
+    <div id="results-media" class="mb-2"></div>
     <div id="results-choices" class="row g-2 mb-3"></div>
     <h3 class="h6">Leaderboard</h3>
     <ol id="results-leaderboard" class="list-group list-group-numbered mb-3"></ol>
@@ -93,9 +95,34 @@ socket.addEventListener('message', (event) => {
   }
 });
 
+function renderMedia(container, question) {
+  container.innerHTML = '';
+  if (!question.media_url) return;
+  let el;
+  if (question.media_kind === 'image') {
+    el = document.createElement('img');
+    el.className = 'img-fluid rounded';
+  } else if (question.media_kind === 'audio') {
+    el = document.createElement('audio');
+    el.className = 'w-100';
+    el.controls = true;
+    el.autoplay = true;
+  } else if (question.media_kind === 'video') {
+    el = document.createElement('video');
+    el.className = 'w-100 rounded';
+    el.controls = true;
+    el.autoplay = true;
+  } else {
+    return;
+  }
+  el.src = question.media_url;
+  container.appendChild(el);
+}
+
 function renderQuestion(question) {
   document.getElementById('question-text').textContent = question.text;
   document.getElementById('answered-count').textContent = '0';
+  renderMedia(document.getElementById('question-media'), question);
   const list = document.getElementById('choice-list');
   list.innerHTML = '';
   question.choices.forEach(choice => {
@@ -111,6 +138,7 @@ function renderQuestion(question) {
 }
 
 function renderResults(question, leaderboard) {
+  renderMedia(document.getElementById('results-media'), question);
   const list = document.getElementById('results-choices');
   list.innerHTML = '';
   question.choices.forEach(choice => {

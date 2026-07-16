@@ -17,11 +17,12 @@ class QuizForm(forms.ModelForm):
 class QuestionForm(forms.ModelForm):
     class Meta:
         model = Question
-        fields = ['text', 'order', 'time_limit_seconds']
+        fields = ['text', 'order', 'time_limit_seconds', 'media']
         widgets = {
             'text': forms.TextInput(attrs={'class': 'form-control'}),
             'order': forms.NumberInput(attrs={'class': 'form-control'}),
             'time_limit_seconds': forms.NumberInput(attrs={'class': 'form-control'}),
+            'media': forms.ClearableFileInput(attrs={'class': 'form-control'}),
         }
 
 

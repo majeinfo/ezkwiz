@@ -1,6 +1,7 @@
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
+from django.core.files.storage import default_storage
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse, reverse_lazy
 from django.views.generic import CreateView, DeleteView, DetailView, ListView, UpdateView
@@ -57,6 +58,11 @@ class QuizDeleteView(LoginRequiredMixin, DeleteView):
     def get_queryset(self):
         return Quiz.objects.filter(owner=self.request.user)
 
+    def form_valid(self, form):
+        for question in self.object.questions.exclude(media=''):
+            default_storage.delete(question.media.name)
+        return super().form_valid(form)
+
 
 def _get_owned_quiz(request, quiz_pk):
     return get_object_or_404(Quiz, pk=quiz_pk, owner=request.user)
@@ -68,7 +74,7 @@ def question_create(request, quiz_pk):
     question = Question(quiz=quiz, order=quiz.questions.count())
 
     if request.method == 'POST':
-        form = QuestionForm(request.POST, instance=question)
+        form = QuestionForm(request.POST, request.FILES, instance=question)
         if form.is_valid():
             unsaved_question = form.save(commit=False)
             formset = ChoiceFormSet(request.POST, instance=unsaved_question)
@@ -93,13 +99,17 @@ def question_create(request, quiz_pk):
 def question_edit(request, quiz_pk, pk):
     quiz = _get_owned_quiz(request, quiz_pk)
     question = get_object_or_404(Question, pk=pk, quiz=quiz)
+    old_media_name = question.media.name if question.media else ''
 
     if request.method == 'POST':
-        form = QuestionForm(request.POST, instance=question)
+        form = QuestionForm(request.POST, request.FILES, instance=question)
         formset = ChoiceFormSet(request.POST, instance=question)
         if form.is_valid() and formset.is_valid():
             form.save()
             formset.save()
+            new_media_name = question.media.name if question.media else ''
+            if old_media_name and old_media_name != new_media_name:
+                default_storage.delete(old_media_name)
             messages.success(request, 'Question updated.')
             return redirect('quizzes:detail', pk=quiz.pk)
     else:
@@ -116,7 +126,10 @@ def question_delete(request, quiz_pk, pk):
     quiz = _get_owned_quiz(request, quiz_pk)
     question = get_object_or_404(Question, pk=pk, quiz=quiz)
     if request.method == 'POST':
+        media_name = question.media.name if question.media else ''
         question.delete()
+        if media_name:
+            default_storage.delete(media_name)
         messages.success(request, 'Question deleted.')
     return redirect('quizzes:detail', pk=quiz.pk)
 
