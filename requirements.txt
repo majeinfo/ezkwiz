@@ -4,3 +4,4 @@ channels_redis==4.3.0
 daphne==4.2.2
 mysqlclient==2.2.8
 django-environ==0.14.0
+whitenoise==6.12.0

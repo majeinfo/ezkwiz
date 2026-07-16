@@ -1,23 +1,62 @@
+# Runs the whole app: MariaDB, Redis, and ezkwiz itself, wired together.
+# For local development with `manage.py runserver` on the host instead, see
+# docker-compose.dev.yml (MariaDB + Redis only).
+#
+# Set SECRET_KEY (and optionally DB_*/ALLOWED_HOSTS/DEBUG) in a .env file
+# before running this -- see .env.example.
+name: ezkwiz
+
 services:
   mariadb:
     image: mariadb:11
     restart: unless-stopped
     environment:
-      MARIADB_DATABASE: quizz
-      MARIADB_USER: quizz
-      MARIADB_PASSWORD: quizz
+      MARIADB_DATABASE: ${DB_NAME:-quizz}
+      MARIADB_USER: ${DB_USER:-quizz}
+      MARIADB_PASSWORD: ${DB_PASSWORD:-quizz}
       MARIADB_ROOT_PASSWORD: root
-    ports:
-      - "3306:3306"
     volumes:
       - mariadb_data:/var/lib/mysql
       - ./docker/mariadb-init:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
 
   redis:
     image: redis:7
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  ezkwiz:
+    image: ghcr.io/majeinfo/ezkwiz:latest
+    build: .
+    restart: unless-stopped
+    depends_on:
+      mariadb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      SECRET_KEY: ${SECRET_KEY:?Set SECRET_KEY in a .env file before running this compose file}
+      DEBUG: ${DEBUG:-False}
+      ALLOWED_HOSTS: ${ALLOWED_HOSTS:-localhost,127.0.0.1}
+      DB_NAME: ${DB_NAME:-quizz}
+      DB_USER: ${DB_USER:-quizz}
+      DB_PASSWORD: ${DB_PASSWORD:-quizz}
+      DB_HOST: mariadb
+      DB_PORT: 3306
+      REDIS_URL: redis://redis:6379/0
     ports:
-      - "6379:6379"
+      - "8000:8000"
+    volumes:
+      - media_data:/app/media
 
 volumes:
   mariadb_data:
+  media_data:

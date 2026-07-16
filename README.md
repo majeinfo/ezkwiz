@@ -30,9 +30,10 @@ nickname and play together in real time.
   (`localStorage`) lets them resume the same session and see the current
   question or results instead of starting over.
 
-## Local setup
+## Local development
 
-Requires Python 3.12+ and Docker (for MariaDB + Redis).
+Requires Python 3.12+ and Docker (for MariaDB + Redis). This runs the app on
+the host with `manage.py runserver`, against containerized MariaDB + Redis.
 
 ```bash
 # 1. Create/activate a virtualenv and install dependencies
@@ -43,10 +44,10 @@ pip install -r requirements.txt
 # 2. Configure environment
 cp .env.example .env
 # edit .env if you want different DB credentials, then make sure
-# docker-compose.yml's MARIADB_* values match
+# docker-compose.dev.yml's MARIADB_* values match
 
 # 3. Start MariaDB + Redis
-docker compose up -d
+docker compose -f docker-compose.dev.yml up -d
 
 # 4. Apply migrations and create a creator account
 python manage.py migrate
@@ -65,6 +66,21 @@ account and build your first quiz at `/quizzes/`.
 python manage.py test
 ```
 
+## Running the whole app in Docker
+
+`docker-compose.yml` (the default, distinct from the dev-only file above)
+runs MariaDB, Redis, and ezkwiz itself together — no local Python/venv setup
+needed. Set at least `SECRET_KEY` in `.env` first (see `.env.example`), then:
+
+```bash
+docker compose up -d --build
+```
+
+This builds the image from the `Dockerfile` (falling back to pulling
+`ghcr.io/majeinfo/ezkwiz:latest`, which a GitHub Actions workflow publishes
+on every push to `main`), waits for MariaDB/Redis to be healthy, applies
+migrations automatically, and serves the app on `http://127.0.0.1:8000/`.
+
 ## Project layout
 
 ```
@@ -74,5 +90,7 @@ quizzes/    Quiz/Question/Choice models + authoring UI
 games/      GameSession/Player/Answer models, WebSocket consumers,
             game state machine (services.py), join/host/play views
 templates/  Shared Bootstrap 5 templates
-docker-compose.yml   Local MariaDB + Redis
+docker-compose.dev.yml   MariaDB + Redis only, for local development/tests
+docker-compose.yml       Full stack (MariaDB + Redis + ezkwiz) in containers
+Dockerfile               Image build for ezkwiz itself
 ```

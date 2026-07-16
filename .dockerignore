@@ -1,0 +1,17 @@
+key.env
+.env
+.env.example
+py314/
+__pycache__/
+*.pyc
+db.sqlite3
+staticfiles/
+media/
+mariadb_data/
+.git/
+.github/
+.gitignore
+docker-compose.yml
+docker-compose.dev.yml
+docker/
+README.md
