@@ -73,6 +73,7 @@ const socket = new WebSocket(`${protocol}${location.host}/ws/play/${CODE}/`);
 let currentQuestionId = null;
 let selectedChoices = new Set();
 let submitted = false;
+let timeUp = false;
 let timerInterval = null;
 let questionStartedAt = null;
 
@@ -91,8 +92,9 @@ document.getElementById('join-button').addEventListener('click', () => {
 });
 
 document.getElementById('submit-answer').addEventListener('click', () => {
-  if (submitted || currentQuestionId === null) return;
+  if (submitted || timeUp || currentQuestionId === null) return;
   submitted = true;
+  document.getElementById('submit-answer').disabled = true;
   const responseTimeMs = Date.now() - questionStartedAt;
   socket.send(JSON.stringify({
     action: 'answer',
@@ -152,10 +154,15 @@ function renderQuestion(question) {
   currentQuestionId = question.id;
   selectedChoices = new Set();
   submitted = false;
+  timeUp = false;
   questionStartedAt = Date.now();
   document.getElementById('answer-status').textContent = '';
   document.getElementById('question-text').textContent = question.text;
   renderMedia(document.getElementById('question-media'), question);
+
+  const submitButton = document.getElementById('submit-answer');
+  submitButton.disabled = false;
+  submitButton.textContent = 'Submit answer';
 
   const list = document.getElementById('choice-list');
   list.innerHTML = '';
@@ -166,7 +173,7 @@ function renderQuestion(question) {
     card.className = 'border rounded p-3 choice-card';
     card.textContent = choice.text;
     card.addEventListener('click', () => {
-      if (submitted) return;
+      if (submitted || timeUp) return;
       if (selectedChoices.has(choice.id)) {
         selectedChoices.delete(choice.id);
         card.classList.remove('selected');
@@ -179,15 +186,30 @@ function renderQuestion(question) {
     list.appendChild(col);
   });
 
+  function lockAnswering() {
+    timeUp = true;
+    submitButton.disabled = true;
+    if (!submitted) {
+      submitButton.textContent = 'Question closed!';
+    }
+  }
+
   if (timerInterval) clearInterval(timerInterval);
-  let remaining = question.time_limit_seconds;
+  let remaining = Math.ceil(question.remaining_seconds ?? question.time_limit_seconds);
   const timerEl = document.getElementById('question-timer');
-  timerEl.textContent = `${remaining}s`;
-  timerInterval = setInterval(() => {
-    remaining -= 1;
-    timerEl.textContent = `${Math.max(remaining, 0)}s`;
-    if (remaining <= 0) clearInterval(timerInterval);
-  }, 1000);
+  timerEl.textContent = `${Math.max(remaining, 0)}s`;
+  if (remaining <= 0) {
+    lockAnswering();
+  } else {
+    timerInterval = setInterval(() => {
+      remaining -= 1;
+      timerEl.textContent = `${Math.max(remaining, 0)}s`;
+      if (remaining <= 0) {
+        clearInterval(timerInterval);
+        lockAnswering();
+      }
+    }, 1000);
+  }
 
   showOnly(questionPanel);
 }

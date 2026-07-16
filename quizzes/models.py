@@ -38,6 +38,11 @@ class Quiz(models.Model):
     )
     title = models.CharField(max_length=200)
     description = models.TextField(blank=True)
+    auto_close_when_all_answered = models.BooleanField(
+        default=False,
+        help_text='Close a question as soon as every joined player has answered, '
+                  'without waiting for the time limit.',
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

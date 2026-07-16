@@ -29,6 +29,7 @@ class GameSession(models.Model):
     host_token = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.LOBBY)
     current_question_index = models.PositiveIntegerField(default=0)
+    current_question_started_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     started_at = models.DateTimeField(null=True, blank=True)
     ended_at = models.DateTimeField(null=True, blank=True)

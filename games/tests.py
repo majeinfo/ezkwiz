@@ -1,13 +1,16 @@
 import shutil
 import tempfile
+from datetime import timedelta
 
 from django.contrib.auth import get_user_model
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase, override_settings
+from django.utils import timezone
 
 from quizzes.models import Choice, Question, Quiz
 
 from . import services
+from .consumers import PlayerConsumer, _close_if_still_on_question
 from .models import GameSession
 
 User = get_user_model()
@@ -161,6 +164,151 @@ class GameFlowTests(TestCase):
         payload = services.question_payload(self.session, self.question)
         self.assertNotIn('media_url', payload)
         self.assertNotIn('media_kind', payload)
+
+    def test_remaining_seconds_near_full_limit_right_after_start(self):
+        services.start_game(self.session)
+        payload = services.question_payload(self.session, self.question)
+        self.assertAlmostEqual(
+            payload['remaining_seconds'], self.question.time_limit_seconds, delta=1,
+        )
+
+    def test_remaining_seconds_decreases_as_time_elapses(self):
+        services.start_game(self.session)
+        self.session.current_question_started_at = timezone.now() - timedelta(seconds=5)
+        self.session.save(update_fields=['current_question_started_at'])
+
+        payload = services.question_payload(self.session, self.question)
+        self.assertAlmostEqual(
+            payload['remaining_seconds'], self.question.time_limit_seconds - 5, delta=1,
+        )
+
+    def test_remaining_seconds_clamped_to_zero_when_expired(self):
+        services.start_game(self.session)
+        self.session.current_question_started_at = timezone.now() - timedelta(seconds=1000)
+        self.session.save(update_fields=['current_question_started_at'])
+
+        payload = services.question_payload(self.session, self.question)
+        self.assertEqual(payload['remaining_seconds'], 0)
+
+    def test_all_players_answered_false_with_no_players(self):
+        services.start_game(self.session)
+        self.assertFalse(services.all_players_answered(self.session, self.question))
+
+    def test_all_players_answered_false_when_some_unanswered(self):
+        services.start_game(self.session)
+        alice = services.join_game(self.session, 'Alice')
+        services.join_game(self.session, 'Bob')
+        services.submit_answer(self.session, alice, self.question, [self.paris.id, self.berlin.id])
+        self.assertFalse(services.all_players_answered(self.session, self.question))
+
+    def test_all_players_answered_true_when_everyone_has_answered(self):
+        services.start_game(self.session)
+        alice = services.join_game(self.session, 'Alice')
+        bob = services.join_game(self.session, 'Bob')
+        services.submit_answer(self.session, alice, self.question, [self.paris.id, self.berlin.id])
+        services.submit_answer(self.session, bob, self.question, [self.paris.id])
+        self.assertTrue(services.all_players_answered(self.session, self.question))
+
+
+class AutoCloseRaceSafetyTests(TestCase):
+    """
+    _close_if_still_on_question backs both the timeout timer and the
+    all-answered shortcut. It must be a safe no-op whenever the game has
+    already moved on by the time it runs, since a stale timer for an earlier
+    question should never reach in and close whatever is active now.
+    """
+
+    def setUp(self):
+        owner = User.objects.create_user(username='autocloser', password='pw')
+        quiz = Quiz.objects.create(owner=owner, title='Autoclose Quiz')
+        self.q1 = Question.objects.create(quiz=quiz, text='Q1', order=0, time_limit_seconds=5)
+        Choice.objects.create(question=self.q1, text='A', is_correct=True, order=0)
+        Choice.objects.create(question=self.q1, text='B', is_correct=False, order=1)
+        self.q2 = Question.objects.create(quiz=quiz, text='Q2', order=1, time_limit_seconds=5)
+        Choice.objects.create(question=self.q2, text='C', is_correct=True, order=0)
+        Choice.objects.create(question=self.q2, text='D', is_correct=False, order=1)
+        self.session = GameSession.objects.create(quiz=quiz)
+
+    def test_closes_when_still_active_on_the_matching_question(self):
+        services.start_game(self.session)
+        result = _close_if_still_on_question(self.session.id, self.q1.id)
+        self.assertIsNotNone(result)
+        self.session.refresh_from_db()
+        self.assertEqual(self.session.status, GameSession.Status.QUESTION_CLOSED)
+
+    def test_noop_when_question_already_closed(self):
+        services.start_game(self.session)
+        services.close_question(self.session)
+        result = _close_if_still_on_question(self.session.id, self.q1.id)
+        self.assertIsNone(result)
+
+    def test_noop_when_game_has_moved_to_a_later_question(self):
+        services.start_game(self.session)
+        services.close_question(self.session)
+        services.next_question(self.session)  # now on q2
+
+        result = _close_if_still_on_question(self.session.id, self.q1.id)
+
+        self.assertIsNone(result)
+        self.session.refresh_from_db()
+        self.assertEqual(self.session.status, GameSession.Status.ACTIVE)
+        self.assertEqual(self.session.current_question, self.q2)
+
+    def test_noop_when_session_no_longer_exists(self):
+        result = _close_if_still_on_question(999999, self.q1.id)
+        self.assertIsNone(result)
+
+
+class AutoCloseOnAllAnsweredTests(TestCase):
+    def setUp(self):
+        owner = User.objects.create_user(username='allanswered', password='pw')
+        self.quiz = Quiz.objects.create(
+            owner=owner, title='All Answered Quiz', auto_close_when_all_answered=True,
+        )
+        self.question = Question.objects.create(quiz=self.quiz, text='Q', order=0)
+        self.correct = Choice.objects.create(question=self.question, text='A', is_correct=True, order=0)
+        Choice.objects.create(question=self.question, text='B', is_correct=False, order=1)
+        self.session = GameSession.objects.create(quiz=self.quiz)
+        services.start_game(self.session)
+
+    def _consumer_for(self, player):
+        consumer = PlayerConsumer()
+        consumer.session = self.session
+        consumer.player = player
+        return consumer
+
+    def test_auto_closes_once_the_last_player_answers(self):
+        alice = services.join_game(self.session, 'Alice')
+        consumer = self._consumer_for(alice)
+
+        result = consumer._submit_answer_and_maybe_close(self.question.id, [self.correct.id], 1000)
+
+        self.assertIsNotNone(result)
+        self.session.refresh_from_db()
+        self.assertEqual(self.session.status, GameSession.Status.QUESTION_CLOSED)
+
+    def test_does_not_auto_close_when_quiz_setting_disabled(self):
+        self.quiz.auto_close_when_all_answered = False
+        self.quiz.save(update_fields=['auto_close_when_all_answered'])
+        alice = services.join_game(self.session, 'Alice')
+        consumer = self._consumer_for(alice)
+
+        result = consumer._submit_answer_and_maybe_close(self.question.id, [self.correct.id], 1000)
+
+        self.assertIsNone(result)
+        self.session.refresh_from_db()
+        self.assertEqual(self.session.status, GameSession.Status.ACTIVE)
+
+    def test_does_not_auto_close_while_a_player_is_still_missing(self):
+        alice = services.join_game(self.session, 'Alice')
+        services.join_game(self.session, 'Bob')  # Bob never answers
+        consumer = self._consumer_for(alice)
+
+        result = consumer._submit_answer_and_maybe_close(self.question.id, [self.correct.id], 1000)
+
+        self.assertIsNone(result)
+        self.session.refresh_from_db()
+        self.assertEqual(self.session.status, GameSession.Status.ACTIVE)
 
 
 @override_settings(MEDIA_ROOT=TEST_MEDIA_ROOT)

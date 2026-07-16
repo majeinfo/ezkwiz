@@ -16,7 +16,10 @@
   </div>
 
   <div id="question-panel" class="card p-3 mb-3 d-none">
-    <h2 class="h5" id="question-text"></h2>
+    <div class="d-flex justify-content-between align-items-center mb-2">
+      <h2 class="h5 mb-0" id="question-text"></h2>
+      <span class="badge bg-secondary" id="question-timer"></span>
+    </div>
     <div id="question-media" class="mb-2"></div>
     <div id="choice-list" class="row g-2 mb-2"></div>
     <p>Answered: <span id="answered-count">0</span> / <span id="total-count">0</span></p>
@@ -57,6 +60,8 @@ function showOnly(panel) {
 
 const protocol = location.protocol === 'https:' ? 'wss://' : 'ws://';
 const socket = new WebSocket(`${protocol}${location.host}/ws/host/${config.host_token}/`);
+
+let timerInterval = null;
 
 document.getElementById('start-button').addEventListener('click', () => {
   socket.send(JSON.stringify({ action: 'start' }));
@@ -134,10 +139,22 @@ function renderQuestion(question) {
     col.appendChild(card);
     list.appendChild(col);
   });
+
+  if (timerInterval) clearInterval(timerInterval);
+  let remaining = Math.ceil(question.remaining_seconds ?? question.time_limit_seconds);
+  const timerEl = document.getElementById('question-timer');
+  timerEl.textContent = `${remaining}s`;
+  timerInterval = setInterval(() => {
+    remaining -= 1;
+    timerEl.textContent = `${Math.max(remaining, 0)}s`;
+    if (remaining <= 0) clearInterval(timerInterval);
+  }, 1000);
+
   showOnly(questionPanel);
 }
 
 function renderResults(question, leaderboard) {
+  if (timerInterval) clearInterval(timerInterval);
   renderMedia(document.getElementById('results-media'), question);
   const list = document.getElementById('results-choices');
   list.innerHTML = '';

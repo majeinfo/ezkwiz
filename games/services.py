@@ -48,7 +48,10 @@ def start_game(session):
     session.status = GameSession.Status.ACTIVE
     session.current_question_index = 0
     session.started_at = timezone.now()
-    session.save(update_fields=['status', 'current_question_index', 'started_at'])
+    session.current_question_started_at = session.started_at
+    session.save(update_fields=[
+        'status', 'current_question_index', 'started_at', 'current_question_started_at',
+    ])
     return session
 
 
@@ -63,11 +66,19 @@ def _shuffled_choices(session, question):
     return choices
 
 
+def _remaining_seconds(session, question):
+    if not session.current_question_started_at:
+        return question.time_limit_seconds
+    elapsed = (timezone.now() - session.current_question_started_at).total_seconds()
+    return max(0.0, question.time_limit_seconds - elapsed)
+
+
 def question_payload(session, question, *, reveal_correct=False):
     payload = {
         'id': question.id,
         'text': question.text,
         'time_limit_seconds': question.time_limit_seconds,
+        'remaining_seconds': round(_remaining_seconds(session, question), 1),
         'choices': [
             {
                 'id': choice.id,
@@ -157,6 +168,11 @@ def answer_counts(session, question):
     return {'answered': answered, 'total': total}
 
 
+def all_players_answered(session, question):
+    counts = answer_counts(session, question)
+    return counts['total'] > 0 and counts['answered'] >= counts['total']
+
+
 @transaction.atomic
 def close_question(session):
     if session.status != GameSession.Status.ACTIVE:
@@ -184,7 +200,10 @@ def next_question(session):
         return {'finished': True, **end_game(session)}
 
     session.status = GameSession.Status.ACTIVE
-    session.save(update_fields=['status', 'current_question_index'])
+    session.current_question_started_at = timezone.now()
+    session.save(update_fields=[
+        'status', 'current_question_index', 'current_question_started_at',
+    ])
     return {
         'finished': False,
         'question': question_payload(session, session.current_question),
