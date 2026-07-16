@@ -89,7 +89,15 @@ CHANNEL_LAYERS = {
     'default': {
         'BACKEND': 'channels_redis.core.RedisChannelLayer',
         'CONFIG': {
-            'hosts': [env('REDIS_URL', default='redis://127.0.0.1:6379/0')],
+            # channels_redis long-polls for messages via a Redis command with its
+            # own 5s blocking timeout (brpop_timeout). redis-py's client-side
+            # socket_timeout defaults to 5s too, which races that blocking window
+            # and intermittently raises TimeoutError on idle connections. Give the
+            # socket a much longer timeout so the command's own window always wins.
+            'hosts': [{
+                'address': env('REDIS_URL', default='redis://127.0.0.1:6379/0'),
+                'socket_timeout': 30,
+            }],
         },
     },
 }
