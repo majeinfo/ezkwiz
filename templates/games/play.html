@@ -72,6 +72,7 @@ let currentQuestionId = null;
 let selectedChoices = new Set();
 let submitted = false;
 let timerInterval = null;
+let questionStartedAt = null;
 
 socket.addEventListener('open', () => {
   const savedToken = localStorage.getItem(STORAGE_TOKEN_KEY);
@@ -90,10 +91,12 @@ document.getElementById('join-button').addEventListener('click', () => {
 document.getElementById('submit-answer').addEventListener('click', () => {
   if (submitted || currentQuestionId === null) return;
   submitted = true;
+  const responseTimeMs = Date.now() - questionStartedAt;
   socket.send(JSON.stringify({
     action: 'answer',
     question_id: currentQuestionId,
     choice_ids: Array.from(selectedChoices),
+    response_time_ms: responseTimeMs,
   }));
   document.getElementById('answer-status').textContent = 'Answer submitted. Waiting for other players...';
 });
@@ -123,6 +126,7 @@ function renderQuestion(question) {
   currentQuestionId = question.id;
   selectedChoices = new Set();
   submitted = false;
+  questionStartedAt = Date.now();
   document.getElementById('answer-status').textContent = '';
   document.getElementById('question-text').textContent = question.text;
 

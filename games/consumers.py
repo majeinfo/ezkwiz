@@ -157,7 +157,7 @@ class HostConsumer(GameGroupConsumer):
 
     def _start_game_and_get_question(self):
         services.start_game(self.session)
-        return services.question_payload(self.session.current_question)
+        return services.question_payload(self.session, self.session.current_question)
 
     async def _handle_close_question(self):
         result = await database_sync_to_async(services.close_question)(self.session)

@@ -6,12 +6,15 @@ the same rules apply regardless of which socket (host or player) triggered a
 transition, and the flow can be unit-tested without a websocket.
 """
 
+import random
+
 from django.db import models, transaction
 from django.utils import timezone
 
 from .models import Answer, GameSession, Player
 
-POINTS_PER_CORRECT = 1000
+BASE_POINTS = 100
+BONUS_POINTS_PER_SECOND = 10
 
 
 class GameError(Exception):
@@ -49,7 +52,18 @@ def start_game(session):
     return session
 
 
-def question_payload(question, *, reveal_correct=False):
+def _shuffled_choices(session, question):
+    """
+    Randomize choice order per (session, question) rather than per request, so
+    the host and every player see the same layout, and a reconnecting player's
+    order doesn't jump around.
+    """
+    choices = list(question.choices.all())
+    random.Random(f'{session.id}:{question.id}').shuffle(choices)
+    return choices
+
+
+def question_payload(session, question, *, reveal_correct=False):
     return {
         'id': question.id,
         'text': question.text,
@@ -60,9 +74,17 @@ def question_payload(question, *, reveal_correct=False):
                 'text': choice.text,
                 **({'is_correct': choice.is_correct} if reveal_correct else {}),
             }
-            for choice in question.choices.all()
+            for choice in _shuffled_choices(session, question)
         ],
     }
+
+
+def compute_points(question, response_time_ms):
+    """100 base points for a correct answer, plus a speed bonus of 10 points
+    per second remaining before the question's time limit."""
+    response_seconds = response_time_ms / 1000
+    bonus = max(0.0, (question.time_limit_seconds - response_seconds) * BONUS_POINTS_PER_SECOND)
+    return BASE_POINTS + round(bonus)
 
 
 def leaderboard_payload(session):
@@ -76,11 +98,14 @@ def current_state_payload(session):
     """What to replay to a (re)connecting player so their screen matches the game in progress."""
     session.refresh_from_db()
     if session.status == GameSession.Status.ACTIVE:
-        return {'type': 'question_started', 'question': question_payload(session.current_question)}
+        return {
+            'type': 'question_started',
+            'question': question_payload(session, session.current_question),
+        }
     if session.status == GameSession.Status.QUESTION_CLOSED:
         return {
             'type': 'question_closed',
-            'question': question_payload(session.current_question, reveal_correct=True),
+            'question': question_payload(session, session.current_question, reveal_correct=True),
             'leaderboard': leaderboard_payload(session),
         }
     if session.status == GameSession.Status.FINISHED:
@@ -98,7 +123,7 @@ def submit_answer(session, player, question, choice_ids, response_time_ms=0):
     correct_ids = set(question.choices.filter(is_correct=True).values_list('id', flat=True))
     submitted_ids = set(choice_ids) & set(question.choices.values_list('id', flat=True))
     is_correct = submitted_ids == correct_ids and bool(submitted_ids)
-    points = POINTS_PER_CORRECT if is_correct else 0
+    points = compute_points(question, response_time_ms) if is_correct else 0
 
     previous_points = Answer.objects.filter(
         player=player, question=question
@@ -138,7 +163,7 @@ def close_question(session):
     session.save(update_fields=['status'])
 
     return {
-        'question': question_payload(question, reveal_correct=True),
+        'question': question_payload(session, question, reveal_correct=True),
         'leaderboard': leaderboard_payload(session),
     }
 
@@ -156,7 +181,10 @@ def next_question(session):
 
     session.status = GameSession.Status.ACTIVE
     session.save(update_fields=['status', 'current_question_index'])
-    return {'finished': False, 'question': question_payload(session.current_question)}
+    return {
+        'finished': False,
+        'question': question_payload(session, session.current_question),
+    }
 
 
 @transaction.atomic
