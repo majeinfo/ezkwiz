@@ -14,4 +14,12 @@ urlpatterns = [
     path('<int:quiz_pk>/questions/new/', views.question_create, name='question_create'),
     path('<int:quiz_pk>/questions/<int:pk>/edit/', views.question_edit, name='question_edit'),
     path('<int:quiz_pk>/questions/<int:pk>/delete/', views.question_delete, name='question_delete'),
+    path(
+        '<int:quiz_pk>/questions/<int:pk>/move-up/',
+        views.question_move, {'direction': 'up'}, name='question_move_up',
+    ),
+    path(
+        '<int:quiz_pk>/questions/<int:pk>/move-down/',
+        views.question_move, {'direction': 'down'}, name='question_move_down',
+    ),
 ]

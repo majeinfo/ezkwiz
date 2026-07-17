@@ -29,6 +29,16 @@
       {% endif %}
     </div>
     <div>
+      <form class="d-inline" method="post" action="{% url 'quizzes:question_move_up' quiz.pk question.pk %}">
+        {% csrf_token %}
+        <button class="btn btn-outline-secondary btn-sm" type="submit" title="Move up"
+                {% if forloop.first %}disabled{% endif %}>&uarr;</button>
+      </form>
+      <form class="d-inline" method="post" action="{% url 'quizzes:question_move_down' quiz.pk question.pk %}">
+        {% csrf_token %}
+        <button class="btn btn-outline-secondary btn-sm" type="submit" title="Move down"
+                {% if forloop.last %}disabled{% endif %}>&darr;</button>
+      </form>
       <a class="btn btn-outline-secondary btn-sm" href="{% url 'quizzes:question_edit' quiz.pk question.pk %}">Edit</a>
       <form class="d-inline" method="post" action="{% url 'quizzes:question_delete' quiz.pk question.pk %}"
             onsubmit="return confirm('Delete this question?');">

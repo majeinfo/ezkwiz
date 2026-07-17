@@ -135,6 +135,31 @@ def question_delete(request, quiz_pk, pk):
 
 
 @login_required
+def question_move(request, quiz_pk, pk, direction):
+    quiz = _get_owned_quiz(request, quiz_pk)
+    question = get_object_or_404(Question, pk=pk, quiz=quiz)
+    if request.method != 'POST':
+        return redirect('quizzes:detail', pk=quiz.pk)
+
+    questions = list(quiz.questions.all())
+    index = questions.index(question)
+    swap_with = index - 1 if direction == 'up' else index + 1
+
+    if 0 <= swap_with < len(questions):
+        questions[index], questions[swap_with] = questions[swap_with], questions[index]
+        # Renormalize everyone's order to their new sequential position,
+        # rather than just swapping the two `order` values -- this also
+        # cleans up any ties/gaps that may have crept in over time, so
+        # moves always have a visible effect.
+        for position, q in enumerate(questions):
+            if q.order != position:
+                q.order = position
+                q.save(update_fields=['order'])
+
+    return redirect('quizzes:detail', pk=quiz.pk)
+
+
+@login_required
 def publish_quiz(request, pk):
     quiz = _get_owned_quiz(request, pk)
     if request.method != 'POST':

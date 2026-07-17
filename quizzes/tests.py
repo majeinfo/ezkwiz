@@ -190,3 +190,57 @@ class QuestionMediaCleanupTests(TestCase):
         self.assertFalse(os.path.exists(old_path))
         self.assertTrue(os.path.exists(question.media.path))
         self.assertNotEqual(question.media.name, '')
+
+
+class QuestionReorderTests(TestCase):
+    def setUp(self):
+        self.owner = User.objects.create_user(username='reorderer', password='pw')
+        self.quiz = Quiz.objects.create(owner=self.owner, title='Reorder Quiz')
+        self.q0 = Question.objects.create(quiz=self.quiz, text='Q0', order=0)
+        self.q1 = Question.objects.create(quiz=self.quiz, text='Q1', order=1)
+        self.q2 = Question.objects.create(quiz=self.quiz, text='Q2', order=2)
+        self.client = Client()
+        self.client.force_login(self.owner)
+
+    def _ordered_texts(self):
+        return list(self.quiz.questions.order_by('order', 'id').values_list('text', flat=True))
+
+    def test_move_up_swaps_with_previous(self):
+        self.client.post(f'/quizzes/{self.quiz.pk}/questions/{self.q1.pk}/move-up/')
+        self.assertEqual(self._ordered_texts(), ['Q1', 'Q0', 'Q2'])
+
+    def test_move_down_swaps_with_next(self):
+        self.client.post(f'/quizzes/{self.quiz.pk}/questions/{self.q1.pk}/move-down/')
+        self.assertEqual(self._ordered_texts(), ['Q0', 'Q2', 'Q1'])
+
+    def test_move_up_first_question_is_a_noop(self):
+        self.client.post(f'/quizzes/{self.quiz.pk}/questions/{self.q0.pk}/move-up/')
+        self.assertEqual(self._ordered_texts(), ['Q0', 'Q1', 'Q2'])
+
+    def test_move_down_last_question_is_a_noop(self):
+        self.client.post(f'/quizzes/{self.quiz.pk}/questions/{self.q2.pk}/move-down/')
+        self.assertEqual(self._ordered_texts(), ['Q0', 'Q1', 'Q2'])
+
+    def test_move_renormalizes_order_to_sequential_values(self):
+        # Force a tie/gap to make sure moving cleans it up rather than just
+        # swapping two already-messy values.
+        Question.objects.filter(pk=self.q0.pk).update(order=5)
+        Question.objects.filter(pk=self.q1.pk).update(order=5)
+        Question.objects.filter(pk=self.q2.pk).update(order=99)
+
+        self.client.post(f'/quizzes/{self.quiz.pk}/questions/{self.q0.pk}/move-down/')
+
+        orders = list(self.quiz.questions.order_by('order', 'id').values_list('order', flat=True))
+        self.assertEqual(orders, [0, 1, 2])
+
+    def test_get_request_does_not_move(self):
+        self.client.get(f'/quizzes/{self.quiz.pk}/questions/{self.q1.pk}/move-up/')
+        self.assertEqual(self._ordered_texts(), ['Q0', 'Q1', 'Q2'])
+
+    def test_non_owner_cannot_move_questions(self):
+        User.objects.create_user(username='someone_else', password='pw')
+        other_client = Client()
+        other_client.force_login(User.objects.get(username='someone_else'))
+        response = other_client.post(f'/quizzes/{self.quiz.pk}/questions/{self.q1.pk}/move-up/')
+        self.assertEqual(response.status_code, 404)
+        self.assertEqual(self._ordered_texts(), ['Q0', 'Q1', 'Q2'])
