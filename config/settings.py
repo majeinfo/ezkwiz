@@ -14,6 +14,18 @@ environ.Env.read_env(BASE_DIR / '.env')
 SECRET_KEY = env('SECRET_KEY')
 DEBUG = env.bool('DEBUG', default=False)
 ALLOWED_HOSTS = env.list('ALLOWED_HOSTS', default=[])
+CSRF_TRUSTED_ORIGINS = env.list('CSRF_TRUSTED_ORIGINS', default=[])
+
+# Set when running behind a reverse proxy that terminates TLS and forwards
+# `X-Forwarded-Proto: https` -- otherwise Django (seeing plain HTTP from the
+# proxy) can't tell the original request was HTTPS, which breaks the CSRF
+# Origin check and secure cookies. Only enable this if that header really is
+# set by a trusted proxy in front of the app, never if the app is directly
+# reachable, since a client could otherwise spoof it.
+if env.bool('BEHIND_HTTPS_PROXY', default=False):
+    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
 
 
 # Application definition

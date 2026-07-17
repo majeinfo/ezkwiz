@@ -80,6 +80,24 @@ This builds the image from the `Dockerfile` (falling back to pulling
 `ghcr.io/majeinfo/ezkwiz:latest`, which a GitHub Actions workflow publishes
 on every push to `main`), waits for MariaDB/Redis to be healthy, applies
 migrations automatically, and serves the app on `http://127.0.0.1:8000/`.
+`BIND_HOST`/`BIND_PORT` in `.env` control which local address/port that's
+published on (e.g. `BIND_HOST=127.0.0.1` to keep it off the public network
+behind a reverse proxy).
+
+### Behind a reverse proxy (HTTPS)
+
+If a reverse proxy (nginx, Caddy, Traefik...) terminates TLS in front of the
+app, set in `.env`:
+
+```
+BEHIND_HTTPS_PROXY=True
+CSRF_TRUSTED_ORIGINS=https://your-domain.example
+```
+
+and make sure the proxy forwards `X-Forwarded-Proto: https` (e.g. nginx:
+`proxy_set_header X-Forwarded-Proto https;`). Without this, logging in or
+submitting any form fails with "CSRF verification failed: Origin checking
+failed" — Django has no way to know the original request was HTTPS.
 
 ## Project layout
 
