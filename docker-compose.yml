@@ -3,7 +3,9 @@
 # docker-compose.dev.yml (MariaDB + Redis only).
 #
 # Set SECRET_KEY (and optionally DB_*/ALLOWED_HOSTS/DEBUG) in a .env file
-# before running this -- see .env.example.
+# before running this -- see .env.example. BIND_HOST/BIND_PORT there control
+# which local address/port the frontend listens on (e.g. BIND_HOST=127.0.0.1
+# to keep it off the public network, behind a reverse proxy).
 name: ezkwiz
 
 services:
@@ -53,7 +55,7 @@ services:
       DB_PORT: 3306
       REDIS_URL: redis://redis:6379/0
     ports:
-      - "8000:8000"
+      - "${BIND_HOST:-0.0.0.0}:${BIND_PORT:-8000}:8000"
     volumes:
       - media_data:/app/media
 
