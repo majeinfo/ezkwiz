@@ -7,7 +7,7 @@ from django.core.exceptions import ValidationError
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import Client, TestCase, override_settings
 
-from .forms import ChoiceFormSet, QuestionForm
+from .forms import ChoiceFormSet, QuestionForm, QuizForm
 from .models import MAX_MEDIA_UPLOAD_SIZE, Question, Quiz, media_kind_for_name, validate_media_file_size
 
 User = get_user_model()
@@ -244,3 +244,34 @@ class QuestionReorderTests(TestCase):
         response = other_client.post(f'/quizzes/{self.quiz.pk}/questions/{self.q1.pk}/move-up/')
         self.assertEqual(response.status_code, 404)
         self.assertEqual(self._ordered_texts(), ['Q0', 'Q1', 'Q2'])
+
+
+class QuizThemeTests(TestCase):
+    def setUp(self):
+        self.owner = User.objects.create_user(username='themer', password='pw')
+
+    def test_new_quiz_defaults_to_basic_theme(self):
+        quiz = Quiz.objects.create(owner=self.owner, title='Untheme Quiz')
+        self.assertEqual(quiz.theme, Quiz.Theme.BASIC)
+
+    def test_quiz_form_accepts_each_theme_choice(self):
+        for theme in ('basic', 'colored', 'dark'):
+            form = QuizForm(data={'title': 'T', 'description': '', 'theme': theme})
+            self.assertTrue(form.is_valid(), form.errors)
+            self.assertEqual(form.cleaned_data['theme'], theme)
+
+    def test_quiz_form_rejects_unknown_theme(self):
+        form = QuizForm(data={'title': 'T', 'description': '', 'theme': 'neon-pulse'})
+        self.assertFalse(form.is_valid())
+        self.assertIn('theme', form.errors)
+
+    def test_editing_quiz_updates_theme(self):
+        quiz = Quiz.objects.create(owner=self.owner, title='Editable Quiz', theme='basic')
+        client = Client()
+        client.force_login(self.owner)
+        response = client.post(f'/quizzes/{quiz.pk}/edit/', {
+            'title': quiz.title, 'description': '', 'theme': 'dark',
+        })
+        self.assertEqual(response.status_code, 302, getattr(response, 'content', b'')[:1000])
+        quiz.refresh_from_db()
+        self.assertEqual(quiz.theme, 'dark')

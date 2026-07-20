@@ -4,7 +4,7 @@ from datetime import timedelta
 
 from django.contrib.auth import get_user_model
 from django.core.files.uploadedfile import SimpleUploadedFile
-from django.test import TestCase, override_settings
+from django.test import Client, TestCase, override_settings
 from django.utils import timezone
 
 from quizzes.models import Choice, Question, Quiz
@@ -332,3 +332,27 @@ class QuestionMediaPayloadTests(TestCase):
         payload = services.question_payload(self.session, self.question)
         self.assertEqual(payload['media_kind'], 'image')
         self.assertEqual(payload['media_url'], self.question.media.url)
+
+
+class QuizThemeRenderingTests(TestCase):
+    def setUp(self):
+        self.owner = User.objects.create_user(username='themehost', password='pw')
+        self.quiz = Quiz.objects.create(owner=self.owner, title='Themed Quiz', theme='colored')
+        self.session = GameSession.objects.create(quiz=self.quiz)
+        self.client = Client()
+
+    def test_play_page_carries_the_quiz_theme_on_the_body_tag(self):
+        response = self.client.get(f'/play/{self.session.code}/')
+        self.assertContains(response, 'data-theme="colored"')
+
+    def test_host_page_carries_the_quiz_theme_on_the_body_tag(self):
+        self.client.force_login(self.owner)
+        response = self.client.get(f'/host/{self.session.host_token}/')
+        self.assertContains(response, 'data-theme="colored"')
+
+    def test_basic_theme_renders_as_basic(self):
+        basic_session = GameSession.objects.create(
+            quiz=Quiz.objects.create(owner=self.owner, title='Basic Quiz', theme='basic'),
+        )
+        response = self.client.get(f'/play/{basic_session.code}/')
+        self.assertContains(response, 'data-theme="basic"')

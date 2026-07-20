@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% block title %}Play {{ code }}{% endblock %}
+{% block body_attrs %} data-theme="{{ session.quiz.theme }}"{% endblock %}
 {% block content %}
 <div class="mx-auto" style="max-width: 640px;">
   <div class="text-center mb-3">
@@ -166,11 +167,11 @@ function renderQuestion(question) {
 
   const list = document.getElementById('choice-list');
   list.innerHTML = '';
-  question.choices.forEach(choice => {
+  question.choices.forEach((choice, index) => {
     const col = document.createElement('div');
     col.className = 'col-6';
     const card = document.createElement('div');
-    card.className = 'border rounded p-3 choice-card';
+    card.className = `border rounded p-3 choice-card choice-color-${index}`;
     card.textContent = choice.text;
     card.addEventListener('click', () => {
       if (submitted || timeUp) return;
@@ -219,11 +220,11 @@ function renderResults(question, leaderboard) {
   renderMedia(document.getElementById('results-media'), question);
   const list = document.getElementById('results-choices');
   list.innerHTML = '';
-  question.choices.forEach(choice => {
+  question.choices.forEach((choice, index) => {
     const col = document.createElement('div');
     col.className = 'col-6';
     const card = document.createElement('div');
-    card.className = 'border rounded p-3 choice-card';
+    card.className = `border rounded p-3 choice-card choice-color-${index}`;
     card.classList.add(choice.is_correct ? 'correct' : 'incorrect');
     card.textContent = choice.text;
     col.appendChild(card);

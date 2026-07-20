@@ -23,3 +23,108 @@
   letter-spacing: 0.3rem;
   font-weight: 700;
 }
+
+/* ==========================================================================
+   Colored theme -- bright per-position choice tiles (Kahoot-style), used on
+   the host/player game screens for quizzes with theme="colored".
+   ========================================================================== */
+
+[data-theme="colored"] #question-panel,
+[data-theme="colored"] #results-panel {
+  background: linear-gradient(135deg, #46178f, #7b2ff7);
+  border: none;
+  color: #fff;
+}
+
+[data-theme="colored"] #question-panel h1,
+[data-theme="colored"] #question-panel h2,
+[data-theme="colored"] #question-panel h3,
+[data-theme="colored"] #results-panel h1,
+[data-theme="colored"] #results-panel h2,
+[data-theme="colored"] #results-panel h3 {
+  font-weight: 700;
+}
+
+[data-theme="colored"] #question-panel .text-muted,
+[data-theme="colored"] #results-panel .text-muted {
+  color: #e0d4f7 !important;
+}
+
+[data-theme="colored"] .choice-card {
+  border: none;
+  border-radius: 0.75rem;
+  min-height: 4.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  color: #fff;
+  font-weight: 700;
+  font-size: 1.1rem;
+}
+
+[data-theme="colored"] .choice-color-0 { background-color: #e21b3c; } /* red */
+[data-theme="colored"] .choice-color-1 { background-color: #f8ba00; } /* yellow */
+[data-theme="colored"] .choice-color-2 { background-color: #26890c; } /* green */
+[data-theme="colored"] .choice-color-3 { background-color: #1368ce; } /* blue */
+
+[data-theme="colored"] .choice-card.selected {
+  outline: 4px solid #fff;
+  outline-offset: -4px;
+}
+
+[data-theme="colored"] .choice-card.correct {
+  outline: 4px solid #000;
+  outline-offset: -4px;
+}
+
+[data-theme="colored"] .choice-card.incorrect {
+  opacity: 0.45;
+}
+
+/* ==========================================================================
+   Dark theme -- dark backgrounds site-wide on the game screens, used for
+   quizzes with theme="dark".
+   ========================================================================== */
+
+[data-theme="dark"] {
+  background-color: #121212;
+  color: #f1f1f1;
+}
+
+[data-theme="dark"] .card {
+  background-color: #1e1e1e;
+  border-color: #333;
+  color: #f1f1f1;
+}
+
+[data-theme="dark"] .text-muted {
+  color: #9a9a9a !important;
+}
+
+[data-theme="dark"] .list-group-item {
+  background-color: #262626;
+  color: #f1f1f1;
+  border-color: #3a3a3a;
+}
+
+[data-theme="dark"] .choice-card {
+  background-color: #2a2a2a;
+  border-color: #444;
+  color: #f1f1f1;
+}
+
+[data-theme="dark"] .choice-card.selected {
+  border-color: #0d6efd;
+  background-color: #16273f;
+}
+
+[data-theme="dark"] .choice-card.correct {
+  border-color: #2ecc71;
+  background-color: #0f2e1c;
+}
+
+[data-theme="dark"] .choice-card.incorrect {
+  border-color: #e74c3c;
+  background-color: #35191a;
+}

@@ -33,11 +33,20 @@ def validate_media_file_size(file):
 
 
 class Quiz(models.Model):
+    class Theme(models.TextChoices):
+        BASIC = 'basic', 'Basic'
+        COLORED = 'colored', 'Colored'
+        DARK = 'dark', 'Dark'
+
     owner = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='quizzes'
     )
     title = models.CharField(max_length=200)
     description = models.TextField(blank=True)
+    theme = models.CharField(
+        max_length=20, choices=Theme.choices, default=Theme.BASIC,
+        help_text='Visual style used on the host and player screens while playing.',
+    )
     auto_close_when_all_answered = models.BooleanField(
         default=False,
         help_text='Close a question as soon as every joined player has answered, '

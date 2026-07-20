@@ -7,10 +7,11 @@ from .models import MAX_CHOICES_PER_QUESTION, Choice, Question, Quiz
 class QuizForm(forms.ModelForm):
     class Meta:
         model = Quiz
-        fields = ['title', 'description', 'auto_close_when_all_answered']
+        fields = ['title', 'description', 'theme', 'auto_close_when_all_answered']
         widgets = {
             'title': forms.TextInput(attrs={'class': 'form-control'}),
             'description': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
+            'theme': forms.Select(attrs={'class': 'form-select'}),
             'auto_close_when_all_answered': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
         }
 

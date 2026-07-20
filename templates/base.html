@@ -9,7 +9,7 @@
   <link href="{% static 'css/app.css' %}" rel="stylesheet">
   {% block extra_head %}{% endblock %}
 </head>
-<body>
+<body{% block body_attrs %}{% endblock %}>
   <nav class="navbar navbar-expand navbar-dark bg-dark mb-4">
     <div class="container">
       <a class="navbar-brand" href="{% url 'quizzes:list' %}">Quizz</a>
