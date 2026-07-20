@@ -30,6 +30,18 @@ nickname and play together in real time.
   (`localStorage`) lets them resume the same session and see the current
   question or results instead of starting over.
 
+## Themes
+
+Each quiz has a selectable visual theme (set on the quiz's edit page) that
+applies to the host and player screens while playing — the authoring UI stays
+plain Bootstrap regardless. These previews are illustrations of each theme's
+colors and layout, not literal screenshots:
+
+| Basic (default) | Colored | Dark |
+| --- | --- | --- |
+| ![Basic theme preview](docs/theme-previews/basic.svg) | ![Colored theme preview](docs/theme-previews/colored.svg) | ![Dark theme preview](docs/theme-previews/dark.svg) |
+| Today's plain Bootstrap look. | Kahoot-style: gradient question banner, choices as red/yellow/green/blue tiles with white text. | Dark background and surfaces, light text, accent-colored borders for selected/correct/incorrect. |
+
 ## Local development
 
 Requires Python 3.12+ and Docker (for MariaDB + Redis). This runs the app on
@@ -108,6 +120,7 @@ quizzes/    Quiz/Question/Choice models + authoring UI
 games/      GameSession/Player/Answer models, WebSocket consumers,
             game state machine (services.py), join/host/play views
 templates/  Shared Bootstrap 5 templates
+docs/       Theme preview images used in this README
 docker-compose.dev.yml   MariaDB + Redis only, for local development/tests
 docker-compose.yml       Full stack (MariaDB + Redis + ezkwiz) in containers
 Dockerfile               Image build for ezkwiz itself
