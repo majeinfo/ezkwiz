@@ -7,6 +7,10 @@
   <div class="text-center mb-3">
     <div class="text-muted">Players join at <strong>{{ request.scheme }}://{{ request.get_host }}{% url 'games:play' session.code %}</strong> with code</div>
     <div class="game-code">{{ session.code }}</div>
+    <div class="d-flex justify-content-center mt-2">
+      <div id="qr-code" class="p-2 bg-white rounded"></div>
+    </div>
+    <div class="text-muted small">Or scan this code to join directly</div>
   </div>
 
   <div id="lobby-panel" class="card p-3 mb-3">
@@ -44,9 +48,19 @@
 {% endblock %}
 
 {% block extra_scripts %}
-<script id="host-config" type="application/json">{"host_token": "{{ session.host_token }}"}</script>
+<script id="host-config" type="application/json">{
+  "host_token": "{{ session.host_token }}",
+  "join_url": "{{ request.scheme }}://{{ request.get_host }}{% url 'games:play' session.code %}"
+}</script>
+<script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
 <script>
 const config = JSON.parse(document.getElementById('host-config').textContent);
+
+new QRCode(document.getElementById('qr-code'), {
+  text: config.join_url,
+  width: 160,
+  height: 160,
+});
 
 const lobbyPanel = document.getElementById('lobby-panel');
 const questionPanel = document.getElementById('question-panel');
