@@ -5,7 +5,9 @@
 <p>This will permanently delete the quiz, its questions, choices, and any game sessions.</p>
 <form method="post">
   {% csrf_token %}
-  <button class="btn btn-danger" type="submit">Delete</button>
-  <a class="btn btn-link" href="{% url 'quizzes:detail' object.pk %}">Cancel</a>
+  <div class="d-flex gap-2">
+    <button class="btn btn-danger" type="submit">Delete</button>
+    <a class="btn btn-secondary" href="{% url 'quizzes:detail' object.pk %}">Cancel</a>
+  </div>
 </form>
 {% endblock %}

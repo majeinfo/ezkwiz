@@ -22,4 +22,5 @@ urlpatterns = [
         '<int:quiz_pk>/questions/<int:pk>/move-down/',
         views.question_move, {'direction': 'down'}, name='question_move_down',
     ),
+    path('<int:quiz_pk>/sessions/<int:pk>/delete/', views.session_delete, name='session_delete'),
 ]

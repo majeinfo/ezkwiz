@@ -7,6 +7,8 @@ from django.core.exceptions import ValidationError
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import Client, TestCase, override_settings
 
+from games.models import GameSession, Player
+
 from .forms import ChoiceFormSet, QuestionForm, QuizForm
 from .models import MAX_MEDIA_UPLOAD_SIZE, Question, Quiz, media_kind_for_name, validate_media_file_size
 
@@ -275,3 +277,46 @@ class QuizThemeTests(TestCase):
         self.assertEqual(response.status_code, 302, getattr(response, 'content', b'')[:1000])
         quiz.refresh_from_db()
         self.assertEqual(quiz.theme, 'dark')
+
+
+class SessionDeleteTests(TestCase):
+    def setUp(self):
+        self.owner = User.objects.create_user(username='sessionowner', password='pw')
+        self.quiz = Quiz.objects.create(owner=self.owner, title='Session Quiz')
+        self.session = GameSession.objects.create(quiz=self.quiz)
+        self.client = Client()
+        self.client.force_login(self.owner)
+
+    def test_owner_can_delete_a_session(self):
+        session_id = self.session.pk
+        response = self.client.post(f'/quizzes/{self.quiz.pk}/sessions/{session_id}/delete/')
+        self.assertEqual(response.status_code, 302)
+        self.assertFalse(GameSession.objects.filter(pk=session_id).exists())
+
+    def test_deleting_session_cascades_to_players(self):
+        from games import services
+        services.join_game(self.session, 'Alice')
+        session_id = self.session.pk
+        self.client.post(f'/quizzes/{self.quiz.pk}/sessions/{session_id}/delete/')
+        self.assertEqual(Player.objects.filter(session_id=session_id).count(), 0)
+
+    def test_get_request_does_not_delete(self):
+        session_id = self.session.pk
+        self.client.get(f'/quizzes/{self.quiz.pk}/sessions/{session_id}/delete/')
+        self.assertTrue(GameSession.objects.filter(pk=session_id).exists())
+
+    def test_non_owner_cannot_delete_session(self):
+        User.objects.create_user(username='someone_else_session', password='pw')
+        other_client = Client()
+        other_client.force_login(User.objects.get(username='someone_else_session'))
+        session_id = self.session.pk
+        response = other_client.post(f'/quizzes/{self.quiz.pk}/sessions/{session_id}/delete/')
+        self.assertEqual(response.status_code, 404)
+        self.assertTrue(GameSession.objects.filter(pk=session_id).exists())
+
+    def test_anonymous_cannot_delete_session(self):
+        session_id = self.session.pk
+        anon_client = Client()
+        response = anon_client.post(f'/quizzes/{self.quiz.pk}/sessions/{session_id}/delete/')
+        self.assertEqual(response.status_code, 302)  # redirected to login
+        self.assertTrue(GameSession.objects.filter(pk=session_id).exists())

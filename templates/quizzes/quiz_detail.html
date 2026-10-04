@@ -66,7 +66,14 @@
   {% for session in quiz.sessions.all %}
   <li class="list-group-item d-flex justify-content-between align-items-center">
     <span>Code {{ session.code }} &mdash; {{ session.get_status_display }}</span>
-    <a class="btn btn-outline-primary btn-sm" href="{% url 'games:host' session.host_token %}">Open host view</a>
+    <div>
+      <a class="btn btn-outline-primary btn-sm" href="{% url 'games:host' session.host_token %}">Open host view</a>
+      <form class="d-inline" method="post" action="{% url 'quizzes:session_delete' quiz.pk session.pk %}"
+            onsubmit="return confirm('Delete this game session and its players/scores?');">
+        {% csrf_token %}
+        <button class="btn btn-outline-danger btn-sm" type="submit">Delete</button>
+      </form>
+    </div>
   </li>
   {% endfor %}
 </ul>

@@ -43,7 +43,14 @@
 
   <div id="final-panel" class="card p-3 mb-3 d-none">
     <h2 class="h5">Final results</h2>
-    <ol id="final-leaderboard" class="list-group list-group-numbered"></ol>
+    <div class="table-responsive">
+      <table class="table align-middle mb-0 final-leaderboard-table">
+        <thead>
+          <tr><th>#</th><th>Player</th><th>Points</th></tr>
+        </thead>
+        <tbody id="final-leaderboard"></tbody>
+      </table>
+    </div>
   </div>
 </div>
 {% endblock %}
@@ -235,7 +242,7 @@ function renderResults(question, leaderboard) {
 }
 
 function renderFinal(leaderboard) {
-  renderLeaderboard('final-leaderboard', leaderboard);
+  renderFinalLeaderboard('final-leaderboard', leaderboard);
   showOnly(finalPanel);
 }
 
@@ -245,8 +252,37 @@ function renderLeaderboard(elementId, leaderboard) {
   leaderboard.forEach(entry => {
     const li = document.createElement('li');
     li.className = 'list-group-item d-flex justify-content-between';
-    li.innerHTML = `<span>${entry.nickname}</span><span>${entry.score}</span>`;
+    const nameSpan = document.createElement('span');
+    nameSpan.textContent = entry.nickname;
+    const scoreSpan = document.createElement('span');
+    scoreSpan.textContent = entry.score;
+    li.appendChild(nameSpan);
+    li.appendChild(scoreSpan);
     list.appendChild(li);
+  });
+}
+
+function renderFinalLeaderboard(elementId, leaderboard) {
+  const tbody = document.getElementById(elementId);
+  tbody.innerHTML = '';
+  leaderboard.forEach((entry, index) => {
+    const rank = index + 1;
+    const tr = document.createElement('tr');
+    if (rank <= 3) {
+      tr.classList.add(`leaderboard-rank-${rank}`);
+    }
+
+    const rankCell = document.createElement('td');
+    rankCell.textContent = rank;
+    const nameCell = document.createElement('td');
+    nameCell.textContent = entry.nickname;
+    const scoreCell = document.createElement('td');
+    scoreCell.textContent = entry.score;
+
+    tr.appendChild(rankCell);
+    tr.appendChild(nameCell);
+    tr.appendChild(scoreCell);
+    tbody.appendChild(tr);
   });
 }
 </script>

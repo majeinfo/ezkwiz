@@ -20,6 +20,10 @@ class QuestionForm(forms.ModelForm):
     class Meta:
         model = Question
         fields = ['text', 'order', 'time_limit_seconds', 'media']
+        labels = {
+            'text': 'Question text',
+            'time_limit_seconds': 'Time limit (seconds)',
+        }
         widgets = {
             'text': forms.TextInput(attrs={'class': 'form-control'}),
             'order': forms.NumberInput(attrs={'class': 'form-control'}),
@@ -59,7 +63,7 @@ ChoiceFormSet = inlineformset_factory(
     validate_max=True,
     can_delete=True,
     widgets={
-        'text': forms.TextInput(attrs={'class': 'form-control'}),
+        'text': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Choice text'}),
         'order': forms.NumberInput(attrs={'class': 'form-control form-control-sm'}),
         'is_correct': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
     },

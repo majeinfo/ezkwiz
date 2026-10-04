@@ -171,3 +171,13 @@ def publish_quiz(request, pk):
 
     session = GameSession.objects.create(quiz=quiz)
     return redirect('games:host', host_token=session.host_token)
+
+
+@login_required
+def session_delete(request, quiz_pk, pk):
+    quiz = _get_owned_quiz(request, quiz_pk)
+    session = get_object_or_404(GameSession, pk=pk, quiz=quiz)
+    if request.method == 'POST':
+        session.delete()
+        messages.success(request, 'Game session deleted.')
+    return redirect('quizzes:detail', pk=quiz.pk)

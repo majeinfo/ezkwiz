@@ -2,12 +2,49 @@
 {% block title %}{% if object %}Edit quiz{% else %}New quiz{% endif %}{% endblock %}
 {% block content %}
 <h1 class="h3 mb-3">{% if object %}Edit quiz{% else %}New quiz{% endif %}</h1>
+
+{% if form.non_field_errors %}
+<div class="alert alert-danger">
+  {% for error in form.non_field_errors %}<div>{{ error }}</div>{% endfor %}
+</div>
+{% endif %}
+
 <form method="post">
   {% csrf_token %}
-  {{ form.as_p }}
-  <button class="btn btn-primary" type="submit">Save</button>
-  {% if object %}
-  <a class="btn btn-link" href="{% url 'quizzes:detail' object.pk %}">Cancel</a>
-  {% endif %}
+
+  <div class="mb-3">
+    <label for="{{ form.title.id_for_label }}" class="form-label">{{ form.title.label }}</label>
+    {{ form.title }}
+    {% for error in form.title.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}
+  </div>
+
+  <div class="mb-3">
+    <label for="{{ form.description.id_for_label }}" class="form-label">{{ form.description.label }}</label>
+    {{ form.description }}
+    {% for error in form.description.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}
+  </div>
+
+  <div class="mb-3">
+    <label for="{{ form.theme.id_for_label }}" class="form-label">{{ form.theme.label }}</label>
+    {{ form.theme }}
+    {% if form.theme.help_text %}<div class="form-text">{{ form.theme.help_text }}</div>{% endif %}
+  </div>
+
+  <div class="mb-4 form-check">
+    {{ form.auto_close_when_all_answered }}
+    <label class="form-check-label" for="{{ form.auto_close_when_all_answered.id_for_label }}">
+      {{ form.auto_close_when_all_answered.label }}
+    </label>
+    {% if form.auto_close_when_all_answered.help_text %}
+    <div class="form-text">{{ form.auto_close_when_all_answered.help_text }}</div>
+    {% endif %}
+  </div>
+
+  <div class="d-flex gap-2">
+    <button class="btn btn-primary" type="submit">Save</button>
+    {% if object %}
+    <a class="btn btn-secondary" href="{% url 'quizzes:detail' object.pk %}">Cancel</a>
+    {% endif %}
+  </div>
 </form>
 {% endblock %}

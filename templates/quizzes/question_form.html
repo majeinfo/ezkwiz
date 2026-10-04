@@ -11,25 +11,49 @@
 
 <form method="post" enctype="multipart/form-data">
   {% csrf_token %}
-  {{ form.as_p }}
 
-  <h2 class="h6 mt-4">Choices (2-4, mark all correct answers)</h2>
+  <div class="mb-3">
+    <label for="{{ form.text.id_for_label }}" class="form-label">{{ form.text.label }}</label>
+    {{ form.text }}
+    {% for error in form.text.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}
+  </div>
+
+  <div class="row">
+    <div class="col-sm-6 mb-3">
+      <label for="{{ form.order.id_for_label }}" class="form-label">{{ form.order.label }}</label>
+      {{ form.order }}
+      {% for error in form.order.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}
+    </div>
+    <div class="col-sm-6 mb-3">
+      <label for="{{ form.time_limit_seconds.id_for_label }}" class="form-label">{{ form.time_limit_seconds.label }}</label>
+      {{ form.time_limit_seconds }}
+      {% for error in form.time_limit_seconds.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}
+    </div>
+  </div>
+
+  <div class="mb-4">
+    <label for="{{ form.media.id_for_label }}" class="form-label">{{ form.media.label }}</label>
+    {{ form.media }}
+    {% if form.media.help_text %}<div class="form-text">{{ form.media.help_text }}</div>{% endif %}
+    {% for error in form.media.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}
+  </div>
+
+  <h2 class="h6 mb-2">Choices (2-4, mark all correct answers)</h2>
   {{ formset.management_form }}
-  <div class="row g-2">
+  <div class="row g-3 mb-3">
     {% for choice_form in formset %}
     <div class="col-md-6">
-      <div class="border rounded p-2">
+      <div class="border rounded p-3 h-100">
         {{ choice_form.id }}
-        <div class="d-flex align-items-center gap-2">
-          <div class="form-check">
-            {{ choice_form.is_correct }}
-            <label class="form-check-label" for="{{ choice_form.is_correct.id_for_label }}">Correct</label>
-          </div>
+        <div class="form-check mb-2">
+          {{ choice_form.is_correct }}
+          <label class="form-check-label" for="{{ choice_form.is_correct.id_for_label }}">Correct</label>
         </div>
         {{ choice_form.text }}
-        <div class="d-flex justify-content-between align-items-center mt-1">
-          <div>
-            <label class="form-label small mb-0 me-1" for="{{ choice_form.order.id_for_label }}">Order</label>
+        {% for error in choice_form.text.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}
+        <div class="d-flex justify-content-between align-items-center mt-2">
+          <div class="d-flex align-items-center gap-1">
+            <label class="form-label small mb-0" for="{{ choice_form.order.id_for_label }}">Order</label>
             {{ choice_form.order }}
           </div>
           {% if choice_form.instance.pk %}
@@ -39,13 +63,14 @@
           </div>
           {% endif %}
         </div>
-        {{ choice_form.errors }}
       </div>
     </div>
     {% endfor %}
   </div>
 
-  <button class="btn btn-primary mt-3" type="submit">Save question</button>
-  <a class="btn btn-link mt-3" href="{% url 'quizzes:detail' quiz.pk %}">Cancel</a>
+  <div class="d-flex gap-2">
+    <button class="btn btn-primary" type="submit">Save question</button>
+    <a class="btn btn-secondary" href="{% url 'quizzes:detail' quiz.pk %}">Cancel</a>
+  </div>
 </form>
 {% endblock %}
