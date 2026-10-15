@@ -27,6 +27,9 @@
     <div class="col-sm-6 mb-3">
       <label for="{{ form.time_limit_seconds.id_for_label }}" class="form-label">{{ form.time_limit_seconds.label }}</label>
       {{ form.time_limit_seconds }}
+      {% if form.time_limit_seconds.help_text %}
+      <div class="form-text">{{ form.time_limit_seconds.help_text }}</div>
+      {% endif %}
       {% for error in form.time_limit_seconds.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}
     </div>
   </div>

@@ -23,7 +23,9 @@
   <li class="list-group-item d-flex justify-content-between align-items-center">
     <div>
       {{ question.text }}
-      <small class="text-muted">({{ question.choices.count }} choices, {{ question.time_limit_seconds }}s)</small>
+      <small class="text-muted">
+        ({{ question.choices.count }} choices, {{ question.effective_time_limit_seconds }}s{% if question.time_limit_seconds is None %}, quiz default{% endif %})
+      </small>
       {% if question.media %}
       <span class="badge bg-info text-dark">{{ question.media_kind }} attached</span>
       {% endif %}

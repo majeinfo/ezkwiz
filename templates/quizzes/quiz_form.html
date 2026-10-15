@@ -30,6 +30,15 @@
     {% if form.theme.help_text %}<div class="form-text">{{ form.theme.help_text }}</div>{% endif %}
   </div>
 
+  <div class="mb-3">
+    <label for="{{ form.default_time_limit_seconds.id_for_label }}" class="form-label">{{ form.default_time_limit_seconds.label }}</label>
+    {{ form.default_time_limit_seconds }}
+    {% if form.default_time_limit_seconds.help_text %}
+    <div class="form-text">{{ form.default_time_limit_seconds.help_text }}</div>
+    {% endif %}
+    {% for error in form.default_time_limit_seconds.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}
+  </div>
+
   <div class="mb-4 form-check">
     {{ form.auto_close_when_all_answered }}
     <label class="form-check-label" for="{{ form.auto_close_when_all_answered.id_for_label }}">

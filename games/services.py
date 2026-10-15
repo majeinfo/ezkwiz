@@ -67,17 +67,18 @@ def _shuffled_choices(session, question):
 
 
 def _remaining_seconds(session, question):
+    time_limit = question.effective_time_limit_seconds
     if not session.current_question_started_at:
-        return question.time_limit_seconds
+        return time_limit
     elapsed = (timezone.now() - session.current_question_started_at).total_seconds()
-    return max(0.0, question.time_limit_seconds - elapsed)
+    return max(0.0, time_limit - elapsed)
 
 
 def question_payload(session, question, *, reveal_correct=False):
     payload = {
         'id': question.id,
         'text': question.text,
-        'time_limit_seconds': question.time_limit_seconds,
+        'time_limit_seconds': question.effective_time_limit_seconds,
         'remaining_seconds': round(_remaining_seconds(session, question), 1),
         'choices': [
             {
@@ -98,7 +99,8 @@ def compute_points(question, response_time_ms):
     """100 base points for a correct answer, plus a speed bonus of 10 points
     per second remaining before the question's time limit."""
     response_seconds = response_time_ms / 1000
-    bonus = max(0.0, (question.time_limit_seconds - response_seconds) * BONUS_POINTS_PER_SECOND)
+    time_limit = question.effective_time_limit_seconds
+    bonus = max(0.0, (time_limit - response_seconds) * BONUS_POINTS_PER_SECOND)
     return BASE_POINTS + round(bonus)
 
 

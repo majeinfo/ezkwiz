@@ -52,6 +52,11 @@ class Quiz(models.Model):
         help_text='Close a question as soon as every joined player has answered, '
                   'without waiting for the time limit.',
     )
+    default_time_limit_seconds = models.PositiveIntegerField(
+        default=20,
+        help_text="Default time limit for this quiz's questions, in seconds. "
+                  'Can be overridden per question.',
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -66,7 +71,10 @@ class Question(models.Model):
     quiz = models.ForeignKey(Quiz, on_delete=models.CASCADE, related_name='questions')
     text = models.CharField(max_length=500)
     order = models.PositiveIntegerField(default=0)
-    time_limit_seconds = models.PositiveIntegerField(default=20)
+    time_limit_seconds = models.PositiveIntegerField(
+        null=True, blank=True,
+        help_text="Leave blank to use the quiz's default time limit.",
+    )
     media = models.FileField(
         upload_to='question_media/%Y/%m/',
         blank=True,
@@ -88,6 +96,12 @@ class Question(models.Model):
         if not self.media:
             return None
         return media_kind_for_name(self.media.name)
+
+    @property
+    def effective_time_limit_seconds(self):
+        if self.time_limit_seconds is not None:
+            return self.time_limit_seconds
+        return self.quiz.default_time_limit_seconds
 
     def clean(self):
         if self.pk and self.choices.count() > MAX_CHOICES_PER_QUESTION:

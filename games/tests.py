@@ -65,8 +65,9 @@ class GameFlowTests(TestCase):
         self.assertEqual(self.session.current_question_index, 0)
 
     def test_submit_answer_full_correct_awards_base_points_plus_speed_bonus(self):
-        # time_limit_seconds defaults to 20; answering in 3.6s should award
-        # 100 base + (20 - 3.6) * 10 = 264 points.
+        # No override set, so effective_time_limit_seconds resolves to the
+        # quiz's default_time_limit_seconds (20); answering in 3.6s should
+        # award 100 base + (20 - 3.6) * 10 = 264 points.
         services.start_game(self.session)
         player = services.join_game(self.session, 'Alice')
         answer = services.submit_answer(
@@ -169,7 +170,7 @@ class GameFlowTests(TestCase):
         services.start_game(self.session)
         payload = services.question_payload(self.session, self.question)
         self.assertAlmostEqual(
-            payload['remaining_seconds'], self.question.time_limit_seconds, delta=1,
+            payload['remaining_seconds'], self.question.effective_time_limit_seconds, delta=1,
         )
 
     def test_remaining_seconds_decreases_as_time_elapses(self):
@@ -179,7 +180,7 @@ class GameFlowTests(TestCase):
 
         payload = services.question_payload(self.session, self.question)
         self.assertAlmostEqual(
-            payload['remaining_seconds'], self.question.time_limit_seconds - 5, delta=1,
+            payload['remaining_seconds'], self.question.effective_time_limit_seconds - 5, delta=1,
         )
 
     def test_remaining_seconds_clamped_to_zero_when_expired(self):

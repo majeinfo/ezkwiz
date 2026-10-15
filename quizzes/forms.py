@@ -7,11 +7,18 @@ from .models import MAX_CHOICES_PER_QUESTION, Choice, Question, Quiz
 class QuizForm(forms.ModelForm):
     class Meta:
         model = Quiz
-        fields = ['title', 'description', 'theme', 'auto_close_when_all_answered']
+        fields = [
+            'title', 'description', 'theme',
+            'default_time_limit_seconds', 'auto_close_when_all_answered',
+        ]
+        labels = {
+            'default_time_limit_seconds': 'Default time limit (seconds)',
+        }
         widgets = {
             'title': forms.TextInput(attrs={'class': 'form-control'}),
             'description': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
             'theme': forms.Select(attrs={'class': 'form-select'}),
+            'default_time_limit_seconds': forms.NumberInput(attrs={'class': 'form-control'}),
             'auto_close_when_all_answered': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
         }
 
@@ -22,7 +29,7 @@ class QuestionForm(forms.ModelForm):
         fields = ['text', 'order', 'time_limit_seconds', 'media']
         labels = {
             'text': 'Question text',
-            'time_limit_seconds': 'Time limit (seconds)',
+            'time_limit_seconds': 'Time limit override (seconds)',
         }
         widgets = {
             'text': forms.TextInput(attrs={'class': 'form-control'}),

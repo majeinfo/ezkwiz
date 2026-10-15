@@ -258,7 +258,9 @@ class QuizThemeTests(TestCase):
 
     def test_quiz_form_accepts_each_theme_choice(self):
         for theme in ('basic', 'colored', 'dark'):
-            form = QuizForm(data={'title': 'T', 'description': '', 'theme': theme})
+            form = QuizForm(data={
+                'title': 'T', 'description': '', 'theme': theme, 'default_time_limit_seconds': 20,
+            })
             self.assertTrue(form.is_valid(), form.errors)
             self.assertEqual(form.cleaned_data['theme'], theme)
 
@@ -272,7 +274,7 @@ class QuizThemeTests(TestCase):
         client = Client()
         client.force_login(self.owner)
         response = client.post(f'/quizzes/{quiz.pk}/edit/', {
-            'title': quiz.title, 'description': '', 'theme': 'dark',
+            'title': quiz.title, 'description': '', 'theme': 'dark', 'default_time_limit_seconds': 20,
         })
         self.assertEqual(response.status_code, 302, getattr(response, 'content', b'')[:1000])
         quiz.refresh_from_db()
@@ -320,3 +322,65 @@ class SessionDeleteTests(TestCase):
         response = anon_client.post(f'/quizzes/{self.quiz.pk}/sessions/{session_id}/delete/')
         self.assertEqual(response.status_code, 302)  # redirected to login
         self.assertTrue(GameSession.objects.filter(pk=session_id).exists())
+
+
+class TimeLimitOverrideTests(TestCase):
+    def setUp(self):
+        self.owner = User.objects.create_user(username='timelimituser', password='pw')
+
+    def test_question_without_override_uses_quiz_default(self):
+        quiz = Quiz.objects.create(owner=self.owner, title='Q', default_time_limit_seconds=30)
+        question = Question.objects.create(quiz=quiz, text='T', order=0)
+        self.assertIsNone(question.time_limit_seconds)
+        self.assertEqual(question.effective_time_limit_seconds, 30)
+
+    def test_question_override_takes_precedence_over_quiz_default(self):
+        quiz = Quiz.objects.create(owner=self.owner, title='Q', default_time_limit_seconds=30)
+        question = Question.objects.create(quiz=quiz, text='T', order=0, time_limit_seconds=5)
+        self.assertEqual(question.effective_time_limit_seconds, 5)
+
+    def test_changing_quiz_default_affects_non_overridden_questions_only(self):
+        quiz = Quiz.objects.create(owner=self.owner, title='Q', default_time_limit_seconds=30)
+        default_question = Question.objects.create(quiz=quiz, text='Default', order=0)
+        overridden_question = Question.objects.create(
+            quiz=quiz, text='Overridden', order=1, time_limit_seconds=5,
+        )
+
+        quiz.default_time_limit_seconds = 45
+        quiz.save(update_fields=['default_time_limit_seconds'])
+        default_question.refresh_from_db()
+        overridden_question.refresh_from_db()
+
+        self.assertEqual(default_question.effective_time_limit_seconds, 45)
+        self.assertEqual(overridden_question.effective_time_limit_seconds, 5)
+
+    def test_quiz_form_requires_default_time_limit_seconds(self):
+        form = QuizForm(data={'title': 'T', 'description': '', 'theme': 'basic'})
+        self.assertFalse(form.is_valid())
+        self.assertIn('default_time_limit_seconds', form.errors)
+
+    def test_question_form_allows_blank_time_limit_override(self):
+        form = QuestionForm(data={'text': 'T', 'order': 0, 'time_limit_seconds': ''})
+        self.assertTrue(form.is_valid(), form.errors)
+        self.assertIsNone(form.cleaned_data['time_limit_seconds'])
+
+    def test_question_form_accepts_explicit_time_limit_override(self):
+        form = QuestionForm(data={'text': 'T', 'order': 0, 'time_limit_seconds': 15})
+        self.assertTrue(form.is_valid(), form.errors)
+        self.assertEqual(form.cleaned_data['time_limit_seconds'], 15)
+
+    def test_creating_question_without_override_via_http(self):
+        quiz = Quiz.objects.create(owner=self.owner, title='HTTP Quiz', default_time_limit_seconds=40)
+        client = Client()
+        client.force_login(self.owner)
+        response = client.post(f'/quizzes/{quiz.pk}/questions/new/', {
+            'text': 'Q', 'order': '0', 'time_limit_seconds': '',
+            'choices-TOTAL_FORMS': '2', 'choices-INITIAL_FORMS': '0',
+            'choices-MIN_NUM_FORMS': '0', 'choices-MAX_NUM_FORMS': '4',
+            'choices-0-text': 'A', 'choices-0-is_correct': 'on', 'choices-0-order': '0',
+            'choices-1-text': 'B', 'choices-1-order': '0',
+        })
+        self.assertEqual(response.status_code, 302, getattr(response, 'content', b'')[:1000])
+        question = quiz.questions.get()
+        self.assertIsNone(question.time_limit_seconds)
+        self.assertEqual(question.effective_time_limit_seconds, 40)
