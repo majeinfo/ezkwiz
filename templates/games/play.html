@@ -48,7 +48,7 @@
     <div class="table-responsive">
       <table class="table align-middle mb-0 final-leaderboard-table">
         <thead>
-          <tr><th>#</th><th>Player</th><th>Points</th></tr>
+          <tr><th>#</th><th>Player</th><th>Correct</th><th>Points</th></tr>
         </thead>
         <tbody id="final-leaderboard"></tbody>
       </table>
@@ -282,11 +282,14 @@ function renderFinalLeaderboard(elementId, leaderboard) {
     rankCell.textContent = rank;
     const nameCell = document.createElement('td');
     nameCell.textContent = entry.nickname;
+    const correctCell = document.createElement('td');
+    correctCell.textContent = entry.correct_answers;
     const scoreCell = document.createElement('td');
     scoreCell.textContent = entry.score;
 
     tr.appendChild(rankCell);
     tr.appendChild(nameCell);
+    tr.appendChild(correctCell);
     tr.appendChild(scoreCell);
     tbody.appendChild(tr);
   });

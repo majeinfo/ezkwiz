@@ -9,6 +9,7 @@ transition, and the flow can be unit-tested without a websocket.
 import random
 
 from django.db import models, transaction
+from django.db.models import Count, Q
 from django.utils import timezone
 
 from .models import Answer, GameSession, Player
@@ -107,9 +108,12 @@ def compute_points(question, response_time_ms):
 
 
 def leaderboard_payload(session):
+    players = session.players.annotate(
+        correct_answers=Count('answers', filter=Q(answers__is_correct=True)),
+    ).order_by('-score', 'joined_at')
     return [
-        {'nickname': p.nickname, 'score': p.score}
-        for p in session.players.order_by('-score', 'joined_at')
+        {'nickname': p.nickname, 'score': p.score, 'correct_answers': p.correct_answers}
+        for p in players
     ]
 
 

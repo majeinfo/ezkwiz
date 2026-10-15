@@ -395,3 +395,54 @@ class QuizThemeRenderingTests(TestCase):
         )
         response = self.client.get(f'/play/{basic_session.code}/')
         self.assertContains(response, 'data-theme="basic"')
+
+
+class LeaderboardCorrectAnswersTests(TestCase):
+    def setUp(self):
+        owner = User.objects.create_user(username='leaderboarduser', password='pw')
+        self.quiz = Quiz.objects.create(owner=owner, title='Leaderboard Quiz')
+        self.q1 = Question.objects.create(quiz=self.quiz, text='Q1', order=0)
+        self.q1_correct = Choice.objects.create(question=self.q1, text='A', is_correct=True, order=0)
+        Choice.objects.create(question=self.q1, text='B', is_correct=False, order=1)
+        self.q2 = Question.objects.create(quiz=self.quiz, text='Q2', order=1)
+        self.q2_correct = Choice.objects.create(question=self.q2, text='C', is_correct=True, order=0)
+        Choice.objects.create(question=self.q2, text='D', is_correct=False, order=1)
+        self.session = GameSession.objects.create(quiz=self.quiz)
+
+    def test_leaderboard_reports_correct_answer_count_per_player(self):
+        services.start_game(self.session)
+        alice = services.join_game(self.session, 'Alice')
+        bob = services.join_game(self.session, 'Bob')
+
+        # Alice gets Q1 right, Bob gets it wrong.
+        services.submit_answer(self.session, alice, self.q1, [self.q1_correct.id])
+        services.submit_answer(self.session, bob, self.q1, [])
+        services.close_question(self.session)
+        result = services.next_question(self.session)
+        self.assertFalse(result['finished'])
+
+        # Both get Q2 right.
+        services.submit_answer(self.session, alice, self.q2, [self.q2_correct.id])
+        services.submit_answer(self.session, bob, self.q2, [self.q2_correct.id])
+        end_result = services.close_question(self.session)
+        leaderboard = {entry['nickname']: entry for entry in end_result['leaderboard']}
+
+        self.assertEqual(leaderboard['Alice']['correct_answers'], 2)
+        self.assertEqual(leaderboard['Bob']['correct_answers'], 1)
+
+    def test_leaderboard_reports_zero_correct_answers_when_player_has_none(self):
+        services.start_game(self.session)
+        alice = services.join_game(self.session, 'Alice')
+        services.submit_answer(self.session, alice, self.q1, [])
+
+        result = services.close_question(self.session)
+        leaderboard = {entry['nickname']: entry for entry in result['leaderboard']}
+        self.assertEqual(leaderboard['Alice']['correct_answers'], 0)
+
+    def test_leaderboard_reports_zero_correct_answers_for_player_with_no_answers(self):
+        services.start_game(self.session)
+        services.join_game(self.session, 'Alice')
+
+        result = services.close_question(self.session)
+        leaderboard = {entry['nickname']: entry for entry in result['leaderboard']}
+        self.assertEqual(leaderboard['Alice']['correct_answers'], 0)
