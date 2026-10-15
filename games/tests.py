@@ -166,6 +166,11 @@ class GameFlowTests(TestCase):
         self.assertNotIn('media_url', payload)
         self.assertNotIn('media_kind', payload)
 
+    def test_question_payload_reports_progress_for_a_single_question_quiz(self):
+        payload = services.question_payload(self.session, self.question)
+        self.assertEqual(payload['question_number'], 1)
+        self.assertEqual(payload['total_questions'], 1)
+
     def test_remaining_seconds_near_full_limit_right_after_start(self):
         services.start_game(self.session)
         payload = services.question_payload(self.session, self.question)
@@ -258,6 +263,39 @@ class AutoCloseRaceSafetyTests(TestCase):
     def test_noop_when_session_no_longer_exists(self):
         result = _close_if_still_on_question(999999, self.q1.id)
         self.assertIsNone(result)
+
+
+class QuestionProgressTests(TestCase):
+    def setUp(self):
+        owner = User.objects.create_user(username='progressuser', password='pw')
+        quiz = Quiz.objects.create(owner=owner, title='Progress Quiz')
+        self.q1 = Question.objects.create(quiz=quiz, text='Q1', order=0)
+        Choice.objects.create(question=self.q1, text='A', is_correct=True, order=0)
+        Choice.objects.create(question=self.q1, text='B', is_correct=False, order=1)
+        self.q2 = Question.objects.create(quiz=quiz, text='Q2', order=1)
+        Choice.objects.create(question=self.q2, text='C', is_correct=True, order=0)
+        Choice.objects.create(question=self.q2, text='D', is_correct=False, order=1)
+        self.session = GameSession.objects.create(quiz=quiz)
+
+    def test_first_question_reports_1_of_2(self):
+        services.start_game(self.session)
+        payload = services.question_payload(self.session, self.session.current_question)
+        self.assertEqual(payload['question_number'], 1)
+        self.assertEqual(payload['total_questions'], 2)
+
+    def test_second_question_reports_2_of_2(self):
+        services.start_game(self.session)
+        services.close_question(self.session)
+        result = services.next_question(self.session)
+        self.assertFalse(result['finished'])
+        self.assertEqual(result['question']['question_number'], 2)
+        self.assertEqual(result['question']['total_questions'], 2)
+
+    def test_question_closed_payload_also_reports_progress(self):
+        services.start_game(self.session)
+        result = services.close_question(self.session)
+        self.assertEqual(result['question']['question_number'], 1)
+        self.assertEqual(result['question']['total_questions'], 2)
 
 
 class AutoCloseOnAllAnsweredTests(TestCase):

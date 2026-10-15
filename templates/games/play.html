@@ -23,6 +23,7 @@
   </div>
 
   <div id="question-panel" class="card p-3 mb-3 d-none">
+    <div class="text-muted small mb-1" id="question-progress"></div>
     <div class="d-flex justify-content-between align-items-center mb-2">
       <h2 class="h5 mb-0" id="question-text"></h2>
       <span class="badge bg-secondary" id="question-timer"></span>
@@ -34,6 +35,7 @@
   </div>
 
   <div id="results-panel" class="card p-3 mb-3 d-none">
+    <div class="text-muted small mb-1" id="results-progress"></div>
     <h2 class="h5">Results</h2>
     <div id="results-media" class="mb-3"></div>
     <div id="results-choices" class="row g-2 mb-3"></div>
@@ -166,6 +168,8 @@ function renderQuestion(question) {
   questionStartedAt = Date.now();
   document.getElementById('answer-status').textContent = '';
   document.getElementById('question-text').textContent = question.text;
+  document.getElementById('question-progress').textContent =
+    `Question ${question.question_number}/${question.total_questions}`;
   renderMedia(document.getElementById('question-media'), question);
 
   const submitButton = document.getElementById('submit-answer');
@@ -224,6 +228,8 @@ function renderQuestion(question) {
 
 function renderResults(question, leaderboard) {
   if (timerInterval) clearInterval(timerInterval);
+  document.getElementById('results-progress').textContent =
+    `Question ${question.question_number}/${question.total_questions}`;
   renderMedia(document.getElementById('results-media'), question);
   const list = document.getElementById('results-choices');
   list.innerHTML = '';

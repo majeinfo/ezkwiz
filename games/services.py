@@ -78,6 +78,8 @@ def question_payload(session, question, *, reveal_correct=False):
     payload = {
         'id': question.id,
         'text': question.text,
+        'question_number': session.current_question_index + 1,
+        'total_questions': session.quiz.questions.count(),
         'time_limit_seconds': question.effective_time_limit_seconds,
         'remaining_seconds': round(_remaining_seconds(session, question), 1),
         'choices': [
